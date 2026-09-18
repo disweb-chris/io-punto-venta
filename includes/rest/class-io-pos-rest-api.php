@@ -27,6 +27,18 @@ class IO_POS_REST_API {
 	}
 
 	/**
+	 * Dirección base de la API, siempre con la barra final.
+	 *
+	 * Sin esa barra, el mostrador pide /io-pos/v1products y WordPress responde
+	 * 404, porque no existe ninguna ruta con ese nombre.
+	 *
+	 * @return string
+	 */
+	public static function get_base_url() {
+		return trailingslashit( rest_url( self::NAMESPACE_V1 ) );
+	}
+
+	/**
 	 * Registra las rutas.
 	 */
 	public function register_routes() {

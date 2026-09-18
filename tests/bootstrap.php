@@ -189,6 +189,18 @@ function io_pos_format_price( $amount, $currency = '' ) {
 	return wc_price( $amount );
 }
 
+function rest_url( $path = '' ) {
+	return 'https://ejemplo.test/wp-json/' . ltrim( (string) $path, '/' );
+}
+
+function trailingslashit( $value ) {
+	return rtrim( (string) $value, '/\\' ) . '/';
+}
+
+function esc_url_raw( $url ) {
+	return $url;
+}
+
 class WP_Error {
 
 	private $code;

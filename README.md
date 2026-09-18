@@ -218,9 +218,15 @@ Rutas propias bajo `io-pos/v1`, con los permisos de arriba:
 ### Pruebas
 
 ```
-php tests/run-tests.php
+php tests/run-tests.php     # 102 pruebas del lado de WordPress
+node tests/check-terminal.js # 10 pruebas de la pantalla
 ```
 
-88 pruebas: fechas, validación de ajustes y campos, normalización de los datos
-del trabajo, cálculo de cobros y saldos, estados del pedido, validación del
-total y —contra una base SQLite real— las consultas del buscador.
+Del lado de PHP: fechas, validación de ajustes y campos, normalización de los
+datos del trabajo, cálculo de cobros y saldos, estados del pedido, validación
+del total, carga de las clases y —contra una base SQLite real— las consultas
+del buscador.
+
+Del lado del navegador: el armado de las direcciones de la API (con enlaces
+permanentes bonitos y simples) y el formato de importes, ejecutando el código
+tal como se publica.

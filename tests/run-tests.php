@@ -449,6 +449,18 @@ foreach ( $remaining as $file => $class ) {
 	io_pos_assert( 'se carga ' . $class, true, class_exists( $class ) );
 }
 
+io_pos_assert(
+	'la API termina en barra',
+	'https://ejemplo.test/wp-json/io-pos/v1/',
+	IO_POS_REST_API::get_base_url()
+);
+
+io_pos_assert(
+	'la ruta se pega bien a la base',
+	'https://ejemplo.test/wp-json/io-pos/v1/products?page=1',
+	IO_POS_REST_API::get_base_url() . 'products?page=1'
+);
+
 io_pos_assert( 'no hay permisos duplicados', count( IO_POS_Install::get_capabilities() ), count( array_unique( array_keys( IO_POS_Install::get_capabilities() ) ) ) );
 io_pos_assert( 'el cajero solo recibe permisos que existen', array(), array_diff( IO_POS_Install::get_cashier_capabilities(), array_merge( array( 'read' ), array_keys( IO_POS_Install::get_capabilities() ) ) ) );
 

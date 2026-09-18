@@ -90,6 +90,17 @@ class IO_POS_Terminal {
 
 		nocache_headers();
 
+		// Con la página cacheada, la clave de seguridad de la API llega vencida
+		// y todo responde 403. Estas constantes las respetan los cachés más
+		// usados de WordPress.
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true );
+		}
+
+		if ( ! defined( 'DONOTCACHEOBJECT' ) ) {
+			define( 'DONOTCACHEOBJECT', true );
+		}
+
 		$custom = locate_template( array( 'io-punto-venta/terminal.php' ) );
 
 		return $custom ? $custom : IO_POS_DIR . 'templates/terminal.php';
@@ -183,7 +194,7 @@ class IO_POS_Terminal {
 		}
 
 		$data = array(
-			'restUrl'        => esc_url_raw( rest_url( IO_POS_REST_API::NAMESPACE_V1 ) ),
+			'restUrl'        => esc_url_raw( IO_POS_REST_API::get_base_url() ),
 			'nonce'          => wp_create_nonce( 'wp_rest' ),
 			'logoutUrl'      => wp_nonce_url( add_query_arg( 'io-pos-logout', 1, io_pos_get_terminal_url() ), 'io-pos-logout' ),
 			'adminUrl'       => current_user_can( 'edit_shop_orders' ) ? admin_url( 'admin.php?page=io-pos-board' ) : '',

@@ -160,10 +160,33 @@
 		return 3 === parts.length ? parts[ 2 ] + '/' + parts[ 1 ] + '/' + parts[ 0 ] : iso;
 	}
 
+	/**
+	 * Arma la dirección de una llamada a la API.
+	 *
+	 * Contempla los dos formatos de enlaces permanentes de WordPress: los
+	 * bonitos (/wp-json/io-pos/v1/) y los simples (?rest_route=/io-pos/v1/),
+	 * donde los parámetros se unen con & en vez de con ?.
+	 *
+	 * @param {string} path Ruta, con sus parámetros si los tiene.
+	 * @return {string} La dirección completa.
+	 */
+	function apiUrl( path ) {
+		var base = String( cfg.restUrl || '' ).replace( /\/+$/, '' );
+		var parts = String( path ).split( '?' );
+		var url = base + '/' + parts[ 0 ].replace( /^\/+/, '' );
+		var query = parts[ 1 ] || '';
+
+		if ( ! query ) {
+			return url;
+		}
+
+		return url + ( url.indexOf( '?' ) >= 0 ? '&' : '?' ) + query;
+	}
+
 	function api( path, options ) {
 		options = options || {};
 
-		var url = cfg.restUrl + path;
+		var url = apiUrl( path );
 		var init = {
 			method: options.method || 'GET',
 			credentials: 'same-origin',
