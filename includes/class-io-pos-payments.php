@@ -2,9 +2,12 @@
 /**
  * Cobros de un pedido.
  *
- * Un pedido se emite siempre por el total del trabajo: así la contabilidad ve
- * lo vendido. Aparte se guarda la lista de cobros hechos, que puede ser una
- * seña ahora y el saldo al retirar, para que también se vea lo cobrado.
+ * Los cobros se guardan en `_io_pagos_historial`, la misma clave y el mismo
+ * formato que usan el metabox "Registro de Pagos" y el módulo de finanzas, así
+ * lo que se cobra en el mostrador aparece en los dos lados sin duplicar nada.
+ *
+ * Cada cobro es un array con: tipo (seña, saldo o pago), metodo, monto, fecha y
+ * user.
  *
  * @package IO\POS
  */
@@ -16,9 +19,16 @@ defined( 'ABSPATH' ) || exit;
  */
 class IO_POS_Payments {
 
-	const META_PAYMENTS = '_io_pos_payments';
-	const META_PAID     = '_io_pos_paid_total';
-	const META_BALANCE  = '_io_pos_balance_due';
+	const META_HISTORY = '_io_pagos_historial';
+
+	// Derivadas: solo para poder filtrar y ordenar por saldo sin recorrer el
+	// historial en cada fila del listado.
+	const META_PAID    = '_io_pos_paid_total';
+	const META_BALANCE = '_io_pos_balance_due';
+
+	const TYPE_DEPOSIT = 'seña';
+	const TYPE_BALANCE = 'saldo';
+	const TYPE_FULL    = 'pago';
 
 	/**
 	 * Métodos de cobro configurados.
@@ -29,7 +39,11 @@ class IO_POS_Payments {
 		$methods = IO_POS_Settings::get_pairs( 'payment_methods' );
 
 		if ( ! $methods ) {
-			$methods = array( 'efectivo' => __( 'Efectivo', 'io-punto-venta' ) );
+			$methods = array(
+				'efectivo'      => __( 'Efectivo', 'io-punto-venta' ),
+				'transferencia' => __( 'Transferencia', 'io-punto-venta' ),
+				'mercadopago'   => __( 'Mercado Pago', 'io-punto-venta' ),
+			);
 		}
 
 		/**
@@ -66,27 +80,56 @@ class IO_POS_Payments {
 	}
 
 	/**
-	 * Cobros registrados en un pedido.
+	 * Historial tal cual está guardado.
+	 *
+	 * @param WC_Order $order El pedido.
+	 *
+	 * @return array[]
+	 */
+	public static function get_history( $order ) {
+		$history = $order->get_meta( self::META_HISTORY );
+
+		// El metabox de pagos guarda con update_post_meta; si el pedido todavía
+		// no tiene el dato en memoria, lo buscamos ahí.
+		if ( ! is_array( $history ) || ! $history ) {
+			$stored = get_post_meta( $order->get_id(), self::META_HISTORY, true );
+
+			if ( is_array( $stored ) ) {
+				$history = $stored;
+			}
+		}
+
+		return is_array( $history ) ? array_values( array_filter( $history, 'is_array' ) ) : array();
+	}
+
+	/**
+	 * Cobros de un pedido, normalizados.
 	 *
 	 * @param WC_Order $order El pedido.
 	 *
 	 * @return array[]
 	 */
 	public static function get_payments( $order ) {
-		$payments = $order->get_meta( self::META_PAYMENTS );
+		$payments = array();
 
-		if ( ! is_array( $payments ) ) {
-			return array();
+		foreach ( self::get_history( $order ) as $entry ) {
+			if ( ! isset( $entry['monto'] ) ) {
+				continue;
+			}
+
+			$method = (string) ( $entry['metodo'] ?? '' );
+
+			$payments[] = array(
+				'type'   => (string) ( $entry['tipo'] ?? self::TYPE_FULL ),
+				'method' => $method,
+				'label'  => self::get_method_label( $method ),
+				'amount' => (float) $entry['monto'],
+				'date'   => (string) ( $entry['fecha'] ?? '' ),
+				'user'   => (string) ( $entry['user'] ?? '' ),
+			);
 		}
 
-		return array_values(
-			array_filter(
-				$payments,
-				function ( $payment ) {
-					return is_array( $payment ) && isset( $payment['amount'] );
-				}
-			)
-		);
+		return $payments;
 	}
 
 	/**
@@ -130,7 +173,7 @@ class IO_POS_Payments {
 		$totals = array();
 
 		foreach ( self::get_payments( $order ) as $payment ) {
-			$method = (string) ( $payment['method'] ?? '' );
+			$method = (string) $payment['method'];
 
 			$totals[ $method ] = round( ( $totals[ $method ] ?? 0 ) + (float) $payment['amount'], wc_get_price_decimals() );
 		}
@@ -139,12 +182,32 @@ class IO_POS_Payments {
 	}
 
 	/**
+	 * Qué tipo de cobro es este, con los nombres que usa el metabox de pagos.
+	 *
+	 * @param WC_Order $order  El pedido.
+	 * @param float    $amount Importe que se está cobrando.
+	 *
+	 * @return string
+	 */
+	public static function guess_type( $order, $amount ) {
+		$already = self::get_paid_total( $order );
+		$total   = round( (float) $order->get_total(), wc_get_price_decimals() );
+		$after   = round( $already + $amount, wc_get_price_decimals() );
+
+		if ( $already > 0 ) {
+			return self::TYPE_BALANCE;
+		}
+
+		return $after < $total - 0.001 ? self::TYPE_DEPOSIT : self::TYPE_FULL;
+	}
+
+	/**
 	 * Registra un cobro en un pedido.
 	 *
 	 * @param WC_Order $order  El pedido.
 	 * @param string   $method Clave del método de cobro.
 	 * @param float    $amount Importe cobrado.
-	 * @param array    $args   Datos extra: note, user_id, date, save, silent.
+	 * @param array    $args   Datos extra: type, note, user_id, date, save, silent.
 	 *
 	 * @return array|WP_Error El cobro registrado.
 	 */
@@ -165,36 +228,38 @@ class IO_POS_Payments {
 		$args = wp_parse_args(
 			$args,
 			array(
-				'note'    => '',
+				'type'    => '',
 				'user_id' => get_current_user_id(),
-				'date'    => current_time( 'mysql' ),
+				'date'    => '',
 				'save'    => true,
 				'silent'  => false,
 			)
 		);
 
-		$payment = array(
-			'id'      => wp_generate_uuid4(),
-			'method'  => $method,
-			'label'   => $methods[ $method ],
-			'amount'  => $amount,
-			'date'    => $args['date'],
-			'user_id' => absint( $args['user_id'] ),
-			'note'    => sanitize_text_field( $args['note'] ),
+		$type = $args['type'] ? $args['type'] : self::guess_type( $order, $amount );
+		$user = $args['user_id'] ? io_pos_get_user_name( $args['user_id'] ) : '';
+
+		$entry = array(
+			'tipo'   => $type,
+			'metodo' => $method,
+			'monto'  => $amount,
+			'fecha'  => $args['date'] ? $args['date'] : wp_date( 'd/m/Y H:i' ),
+			'user'   => $user,
 		);
 
-		$payments   = self::get_payments( $order );
-		$payments[] = $payment;
+		$history   = self::get_history( $order );
+		$history[] = $entry;
 
-		$order->update_meta_data( self::META_PAYMENTS, $payments );
+		$order->update_meta_data( self::META_HISTORY, $history );
 
 		self::recalculate( $order, false );
 
 		if ( ! $args['silent'] ) {
 			$order->add_order_note(
 				sprintf(
-					/* translators: 1: importe, 2: método de cobro, 3: saldo pendiente. */
-					__( 'Cobro registrado: %1$s (%2$s). Saldo pendiente: %3$s.', 'io-punto-venta' ),
+					/* translators: 1: tipo de cobro, 2: importe, 3: método, 4: saldo pendiente. */
+					__( '%1$s — %2$s vía %3$s | Mostrador. Saldo pendiente: %4$s.', 'io-punto-venta' ),
+					ucfirst( $type ),
 					wp_strip_all_tags( wc_price( $amount, array( 'currency' => $order->get_currency() ) ) ),
 					$methods[ $method ],
 					wp_strip_all_tags( wc_price( self::get_balance( $order ), array( 'currency' => $order->get_currency() ) ) )
@@ -210,15 +275,15 @@ class IO_POS_Payments {
 		 * Se dispara cuando se registra un cobro.
 		 *
 		 * @param WC_Order $order   El pedido.
-		 * @param array    $payment El cobro.
+		 * @param array    $payment El cobro, con las claves del historial.
 		 */
-		do_action( 'io_pos_payment_recorded', $order, $payment );
+		do_action( 'io_pos_payment_recorded', $order, $entry );
 
-		return $payment;
+		return $entry;
 	}
 
 	/**
-	 * Recalcula lo cobrado y el saldo, y ajusta el estado del pedido.
+	 * Recalcula lo cobrado y el saldo, y ajusta la fecha de pago.
 	 *
 	 * @param WC_Order $order El pedido.
 	 * @param bool     $save  Si hay que guardar el pedido.
@@ -231,7 +296,7 @@ class IO_POS_Payments {
 		$order->update_meta_data( self::META_BALANCE, wc_format_decimal( $balance, wc_get_price_decimals() ) );
 
 		if ( $paid > 0 && $balance <= 0 && ! $order->get_date_paid( 'edit' ) ) {
-			$order->set_date_paid( current_time( 'timestamp', true ) ); // phpcs:ignore WordPress.DateTime.RestrictedFunctions.timestamp_current_time
+			$order->set_date_paid( time() );
 		}
 
 		if ( $save ) {
@@ -273,5 +338,36 @@ class IO_POS_Payments {
 		 * @param WC_Order $order  El pedido.
 		 */
 		return apply_filters( 'io_pos_order_target_status', $status, $order );
+	}
+
+	/**
+	 * Avisa al cliente por correo, usando el email del metabox de pagos.
+	 *
+	 * @param WC_Order $order   El pedido.
+	 * @param array    $payment El cobro registrado.
+	 */
+	public static function maybe_send_email( $order, array $payment ) {
+		if ( ! IO_POS_Settings::is_enabled( 'payment_send_email' ) ) {
+			return;
+		}
+
+		if ( ! function_exists( 'io_enviar_email_pago' ) || ! $order->get_billing_email() ) {
+			return;
+		}
+
+		$labels = array(
+			self::TYPE_DEPOSIT => '🟡 Seña',
+			self::TYPE_BALANCE => '🟢 Saldo',
+			self::TYPE_FULL    => '✅ Pago completo',
+		);
+
+		io_enviar_email_pago(
+			$order,
+			$payment['tipo'],
+			(float) $payment['monto'],
+			$labels[ $payment['tipo'] ] ?? $payment['tipo'],
+			self::get_method_label( $payment['metodo'] ),
+			self::get_balance( $order )
+		);
 	}
 }

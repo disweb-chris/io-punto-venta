@@ -79,11 +79,6 @@ class IO_POS_Plugin {
 				'class'     => 'IO_POS_Admin_Orders',
 				'condition' => 'admin',
 			),
-			'board'    => array(
-				'file'      => 'admin/class-io-pos-admin-board.php',
-				'class'     => 'IO_POS_Admin_Board',
-				'condition' => 'admin',
-			),
 			'settings' => array(
 				'file'      => 'admin/class-io-pos-admin-settings.php',
 				'class'     => 'IO_POS_Admin_Settings',

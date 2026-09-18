@@ -1377,7 +1377,13 @@
 			] ),
 			el( 'div', { class: 'io-pos-header__user' }, [
 				el( 'span', { text: cfg.user.name } ),
-				cfg.adminUrl ? el( 'a', { class: 'io-pos-header__link', href: cfg.adminUrl, text: 'Panel' } ) : null,
+				cfg.adminUrl ? el( 'a', {
+					class: 'io-pos-header__link',
+					href: cfg.adminUrl,
+					target: '_blank',
+					rel: 'noopener',
+					text: cfg.adminLabel || 'Pedidos'
+				} ) : null,
 				el( 'a', { class: 'io-pos-header__link', href: cfg.logoutUrl, text: 'Salir' } )
 			] )
 		] );
@@ -1494,6 +1500,110 @@
 		] );
 	}
 
+	/**
+	 * Dibuja una línea del carrito.
+	 *
+	 * La cantidad y el precio se pueden tipear: se guardan al salir del campo o
+	 * al apretar Enter, así escribir "10" no redibuja en cada tecla.
+	 *
+	 * @param {Object} line La línea.
+	 * @return {HTMLElement} La línea dibujada.
+	 */
+	function renderLine( line ) {
+		var canEditPrice = caps.io_pos_edit_price || line.custom;
+
+		var qtyInput = el( 'input', {
+			type: 'number',
+			inputmode: 'numeric',
+			min: '1',
+			step: '1',
+			id: 'io-pos-qty-' + line.key,
+			class: 'io-pos-line__input io-pos-line__input--qty',
+			value: line.qty
+		} );
+
+		var priceInput = el( 'input', {
+			type: 'number',
+			inputmode: 'decimal',
+			min: '0',
+			step: '0.01',
+			id: 'io-pos-price-' + line.key,
+			class: 'io-pos-line__input io-pos-line__input--price',
+			value: line.price,
+			disabled: canEditPrice ? null : 'disabled',
+			title: canEditPrice ? '' : 'No tenés permiso para cambiar precios'
+		} );
+
+		function commit() {
+			var qty = parseInt( qtyInput.value, 10 );
+
+			line.qty = qty > 0 ? qty : 1;
+
+			if ( canEditPrice ) {
+				line.price = Math.max( 0, round( toNumber( priceInput.value ) ) );
+			}
+
+			render();
+		}
+
+		[ qtyInput, priceInput ].forEach( function ( input ) {
+			input.addEventListener( 'change', commit );
+			input.addEventListener( 'focus', function () {
+				input.select();
+			} );
+			input.addEventListener( 'keydown', function ( event ) {
+				if ( 'Enter' === event.key ) {
+					event.preventDefault();
+					input.blur();
+				}
+			} );
+		} );
+
+		return el( 'div', { class: 'io-pos-line' }, [
+			el( 'div', { class: 'io-pos-line__top' }, [
+				el( 'button', {
+					type: 'button',
+					class: 'io-pos-line__name',
+					title: 'Editar la nota de producción',
+					onclick: function () {
+						openLine( line );
+					}
+				}, [
+					el( 'span', { text: line.name } ),
+					line.sku ? el( 'small', { class: 'io-pos-line__sku', text: line.sku } ) : null
+				] ),
+				el( 'button', {
+					type: 'button',
+					class: 'io-pos-line__remove',
+					title: 'Quitar del pedido',
+					text: '×',
+					onclick: function () {
+						removeLine( line.key );
+					}
+				} )
+			] ),
+			line.note ? el( 'div', { class: 'io-pos-line__note', text: line.note } ) : null,
+			el( 'div', { class: 'io-pos-line__row' }, [
+				button( '−', function () {
+					if ( line.qty > 1 ) {
+						line.qty--;
+						render();
+					} else {
+						removeLine( line.key );
+					}
+				}, 'qty' ),
+				qtyInput,
+				button( '+', function () {
+					line.qty++;
+					render();
+				}, 'qty' ),
+				el( 'span', { class: 'io-pos-line__times', text: '×' } ),
+				priceInput,
+				el( 'span', { class: 'io-pos-line__total', text: money( line.price * line.qty ) } )
+			] )
+		] );
+	}
+
 	function renderCart() {
 		var lines = el( 'div', { class: 'io-pos-cart__lines' } );
 
@@ -1502,37 +1612,7 @@
 		}
 
 		state.cart.forEach( function ( line ) {
-			lines.appendChild(
-				el( 'div', { class: 'io-pos-line' }, [
-					el( 'button', {
-						type: 'button',
-						class: 'io-pos-line__main',
-						onclick: function () {
-							openLine( line );
-						}
-					}, [
-						el( 'span', { class: 'io-pos-line__name', text: line.name } ),
-						line.note ? el( 'span', { class: 'io-pos-line__note', text: line.note } ) : null,
-						el( 'span', { class: 'io-pos-line__price', text: line.qty + ' × ' + money( line.price ) } )
-					] ),
-					el( 'div', { class: 'io-pos-line__actions' }, [
-						button( '−', function () {
-							if ( line.qty > 1 ) {
-								line.qty--;
-								render();
-							} else {
-								removeLine( line.key );
-							}
-						}, 'qty' ),
-						el( 'span', { class: 'io-pos-line__qty', text: String( line.qty ) } ),
-						button( '+', function () {
-							line.qty++;
-							render();
-						}, 'qty' ),
-						el( 'span', { class: 'io-pos-line__total', text: money( line.price * line.qty ) } )
-					] )
-				] )
-			);
+			lines.appendChild( renderLine( line ) );
 		} );
 
 		var totals = el( 'div', { class: 'io-pos-totals' } );

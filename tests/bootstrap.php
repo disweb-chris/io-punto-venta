@@ -171,6 +171,34 @@ function wp_rand( $min = 0, $max = 65535 ) {
 	return random_int( $min, $max );
 }
 
+function remove_accents( $text ) {
+	return strtr(
+		(string) $text,
+		array(
+			'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n',
+			'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ü' => 'U', 'Ñ' => 'N',
+		)
+	);
+}
+
+function sanitize_user( $username, $strict = false ) {
+	$username = preg_replace( '/[^a-zA-Z0-9 _.\-@]/', '', (string) $username );
+
+	return trim( $username );
+}
+
+function get_post_meta( $post_id, $key = '', $single = false ) {
+	return $single ? '' : array();
+}
+
+function update_post_meta( $post_id, $key, $value ) {
+	return true;
+}
+
+function get_userdata( $user_id ) {
+	return false;
+}
+
 function wc_price( $amount, $args = array() ) {
 	return '$' . number_format( (float) $amount, 2, ',', '.' );
 }
@@ -375,9 +403,18 @@ class WC_Order {
 	private $notes     = array();
 	private $date_paid = null;
 
+	private static $next_id = 1000;
+
+	private $id;
+
 	public function __construct( array $meta = array(), $total = 0.0 ) {
 		$this->meta  = $meta;
 		$this->total = (float) $total;
+		$this->id    = self::$next_id++;
+	}
+
+	public function get_id() {
+		return $this->id;
 	}
 
 	public function get_total() {

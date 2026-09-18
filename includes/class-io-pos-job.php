@@ -15,16 +15,19 @@ defined( 'ABSPATH' ) || exit;
  */
 class IO_POS_Job {
 
-	const META_DELIVERY_DATE   = '_io_pos_delivery_date';
+	/**
+	 * Las claves que ya usa el Panel Taller, para no duplicar datos:
+	 * la fecha de entrega y la fase son las mismas que ve el taller.
+	 */
+	const META_DELIVERY_DATE   = '_wn_delivery_date';
+	const META_STATUS          = '_wn_fase';
+	const META_URGENT          = '_io_urgente';
+
 	const META_DELIVERY_TIME   = '_io_pos_delivery_time';
 	const META_DELIVERY_METHOD = '_io_pos_delivery_method';
 	const META_PRIORITY        = '_io_pos_priority';
-	const META_STATUS          = '_io_pos_production_status';
 	const META_NOTES           = '_io_pos_production_notes';
 	const META_FIELD_PREFIX    = '_io_pos_field_';
-	const META_DEPOSIT         = '_io_pos_deposit';
-	const META_BALANCE         = '_io_pos_balance_due';
-	const META_JOB_TOTAL       = '_io_pos_job_total';
 
 	/**
 	 * Runtime cache for the parsed field schema.
@@ -52,7 +55,17 @@ class IO_POS_Job {
 
 		foreach ( IO_POS_Settings::get_lines( 'job_custom_fields' ) as $line ) {
 			$parts = array_map( 'trim', explode( '|', $line ) );
-			$key   = sanitize_key( $parts[0] ?? '' );
+			$raw   = $parts[0] ?? '';
+
+			// "clave=_otra_meta" permite guardar en una clave que ya usa otro
+			// módulo, por ejemplo el enlace de Drive del Panel Taller.
+			$meta_key = '';
+
+			if ( false !== strpos( $raw, '=' ) ) {
+				list( $raw, $meta_key ) = array_map( 'trim', explode( '=', $raw, 2 ) );
+			}
+
+			$key = sanitize_key( $raw );
 
 			if ( ! $key ) {
 				continue;
@@ -69,7 +82,7 @@ class IO_POS_Job {
 
 			$fields[ $key ] = array(
 				'key'      => $key,
-				'meta_key' => self::META_FIELD_PREFIX . $key,
+				'meta_key' => $meta_key ? $meta_key : self::META_FIELD_PREFIX . $key,
 				'label'    => $parts[1] ?: $parts[0],
 				'type'     => $type,
 				'options'  => $options,
@@ -165,17 +178,13 @@ class IO_POS_Job {
 	/**
 	 * Claves meta del formulario del trabajo.
 	 *
-	 * Solo los datos del trabajo: lo cobrado y el saldo son del pedido, no del
-	 * trabajo, y los maneja IO_POS_Payments.
+	 * Solo los datos que se cargan a mano. La fase no cuenta, porque el
+	 * mostrador se la pone a todos los pedidos, y lo cobrado es del pedido.
 	 *
 	 * @return string[]
 	 */
 	public static function get_meta_keys() {
-		$keys = wp_list_pluck( self::get_schema(), 'meta_key' );
-
-		$keys[] = self::META_STATUS;
-
-		return array_values( array_unique( $keys ) );
+		return array_values( array_unique( wp_list_pluck( self::get_schema(), 'meta_key' ) ) );
 	}
 
 	/**
@@ -184,16 +193,51 @@ class IO_POS_Job {
 	 * @return array<string,string>
 	 */
 	public static function get_production_statuses() {
-		$statuses = IO_POS_Settings::get_pairs( 'production_statuses' );
+		// Si el Panel Taller (o su snippet de fases) está activo, mandan sus
+		// fases: son las mismas que ve el taller en su pantalla.
+		if ( function_exists( 'wn_phase_labels' ) ) {
+			$statuses = wn_phase_labels();
+		} elseif ( function_exists( 'io_taller_phase_labels' ) ) {
+			$statuses = io_taller_phase_labels();
+		} else {
+			$statuses = IO_POS_Settings::get_pairs( 'production_statuses' );
+		}
 
 		if ( ! $statuses ) {
 			$statuses = array(
-				'pendiente' => __( 'Pendiente', 'io-punto-venta' ),
+				'diseno'    => __( 'Diseño', 'io-punto-venta' ),
 				'entregado' => __( 'Entregado', 'io-punto-venta' ),
 			);
 		}
 
 		return apply_filters( 'io_pos_production_statuses', $statuses );
+	}
+
+	/**
+	 * Guarda la fase del pedido respetando el sistema del taller.
+	 *
+	 * @param WC_Order $order  El pedido.
+	 * @param string   $status La fase.
+	 * @param string   $origen De dónde viene el cambio, para el registro.
+	 *
+	 * @return bool Si se pudo guardar.
+	 */
+	public static function set_production_status( $order, $status, $origen = 'mostrador' ) {
+		if ( ! array_key_exists( $status, self::get_production_statuses() ) ) {
+			return false;
+		}
+
+		if ( function_exists( 'wn_phase_transition' ) ) {
+			$result = wn_phase_transition( $order, $status, $origen );
+
+			if ( ! is_wp_error( $result ) ) {
+				return true;
+			}
+		}
+
+		$order->update_meta_data( self::META_STATUS, $status );
+
+		return true;
 	}
 
 	/**

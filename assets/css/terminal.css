@@ -32,6 +32,26 @@ body.io-pos-body * {
 	box-sizing: border-box;
 }
 
+/* Reset de los controles: el tema de la tienda les pone alturas y tipografías
+   que cortan el texto de los desplegables. */
+.io-pos-app input,
+.io-pos-app select,
+.io-pos-app textarea,
+.io-pos-app button,
+.io-pos-modal input,
+.io-pos-modal select,
+.io-pos-modal textarea,
+.io-pos-modal button {
+	font-family: inherit;
+	line-height: 1.4;
+	letter-spacing: normal;
+	text-transform: none;
+	min-height: 0;
+	max-width: none;
+	margin: 0;
+	vertical-align: middle;
+}
+
 .io-pos-app {
 	display: flex;
 	flex-direction: column;
@@ -127,10 +147,18 @@ body.io-pos-body * {
 
 .io-pos-categories {
 	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
 	gap: 8px;
+	min-height: 48px;
 	overflow-x: auto;
+	overflow-y: hidden;
 	padding-bottom: 4px;
 	scrollbar-width: thin;
+}
+
+.io-pos-categories:empty {
+	display: none;
 }
 
 .io-pos-grid {
@@ -281,49 +309,110 @@ body.io-pos-body * {
 	border-bottom: 1px solid var(--io-pos-line);
 }
 
-.io-pos-line__main {
+.io-pos-line__top {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+.io-pos-line__name {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
-	width: 100%;
+	flex: 1 1 auto;
+	min-width: 0;
 	padding: 0;
 	border: 0;
 	background: none;
 	font-family: inherit;
+	font-size: 15px;
+	font-weight: 600;
 	text-align: left;
+	color: inherit;
 	cursor: pointer;
 }
 
-.io-pos-line__name {
-	font-weight: 600;
-	font-size: 15px;
+.io-pos-line__sku {
+	color: var(--io-pos-muted);
+	font-size: 12px;
+	font-weight: 400;
+}
+
+.io-pos-line__remove {
+	flex: 0 0 auto;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: 0;
+	border-radius: 6px;
+	background: #f1f5f9;
+	color: var(--io-pos-muted);
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.io-pos-line__remove:hover {
+	background: #fee2e2;
+	color: var(--io-pos-danger);
 }
 
 .io-pos-line__note {
+	margin-top: 2px;
 	color: var(--io-pos-warn);
 	font-size: 12px;
 }
 
-.io-pos-line__price {
-	color: var(--io-pos-muted);
-	font-size: 13px;
-}
-
-.io-pos-line__actions {
+.io-pos-line__row {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	margin-top: 6px;
+	gap: 6px;
+	margin-top: 8px;
 }
 
-.io-pos-line__qty {
-	min-width: 28px;
-	text-align: center;
+.io-pos-line__input {
+	width: 100%;
+	min-width: 0;
+	padding: 8px 6px;
+	border: 1px solid var(--io-pos-line);
+	border-radius: 6px;
+	background: #fff;
+	font-family: inherit;
+	font-size: 15px;
 	font-weight: 700;
+	text-align: center;
+	color: inherit;
+}
+
+.io-pos-line__input:focus {
+	outline: none;
+	border-color: var(--io-pos-brand);
+	box-shadow: 0 0 0 2px rgba(15, 118, 110, .15);
+}
+
+.io-pos-line__input:disabled {
+	background: #f1f5f9;
+	color: var(--io-pos-muted);
+}
+
+.io-pos-line__input--qty {
+	flex: 0 0 56px;
+}
+
+.io-pos-line__input--price {
+	flex: 1 1 auto;
+	text-align: right;
+}
+
+.io-pos-line__times {
+	flex: 0 0 auto;
+	color: var(--io-pos-muted);
 }
 
 .io-pos-line__total {
-	margin-left: auto;
+	flex: 0 0 auto;
+	min-width: 84px;
+	text-align: right;
 	font-weight: 700;
 }
 
@@ -427,7 +516,8 @@ body.io-pos-body * {
 }
 
 .io-pos-button--qty {
-	width: 40px;
+	flex: 0 0 auto;
+	width: 36px;
 	padding: 8px 0;
 	font-size: 20px;
 	line-height: 1;
@@ -563,6 +653,21 @@ body.io-pos-body * {
 	font-family: inherit;
 	font-size: 16px;
 	color: inherit;
+}
+
+select.io-pos-input,
+select.io-pos-line__input {
+	height: auto;
+	min-height: 48px;
+	padding-right: 38px;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+	background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2364748b' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 14px center;
+	background-size: 12px 8px;
+	text-overflow: ellipsis;
 }
 
 .io-pos-input:focus {

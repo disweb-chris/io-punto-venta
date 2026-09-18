@@ -23,17 +23,44 @@ class IO_POS_Admin_Settings {
 	}
 
 	/**
-	 * Add the settings submenu.
+	 * Crea el menú del plugin.
+	 *
+	 * La pantalla de producción la sigue manejando el Panel Taller, así que acá
+	 * solo van los ajustes y el acceso directo al mostrador.
 	 */
 	public function add_menu() {
+		$capability = apply_filters( 'io_pos_settings_capability', 'manage_woocommerce' );
+
+		add_menu_page(
+			__( 'Mostrador', 'io-punto-venta' ),
+			__( 'Mostrador', 'io-punto-venta' ),
+			$capability,
+			'io-pos-settings',
+			array( $this, 'render' ),
+			'dashicons-store',
+			56
+		);
+
 		add_submenu_page(
-			'io-pos-board',
-			__( 'Ajustes de la imprenta', 'io-punto-venta' ),
+			'io-pos-settings',
+			__( 'Ajustes del mostrador', 'io-punto-venta' ),
 			__( 'Ajustes', 'io-punto-venta' ),
-			apply_filters( 'io_pos_settings_capability', 'manage_woocommerce' ),
+			$capability,
 			'io-pos-settings',
 			array( $this, 'render' )
 		);
+
+		$terminal_url = io_pos_get_terminal_url();
+
+		if ( $terminal_url && current_user_can( 'io_pos_use' ) ) {
+			add_submenu_page(
+				'io-pos-settings',
+				__( 'Abrir el mostrador', 'io-punto-venta' ),
+				__( 'Abrir el mostrador', 'io-punto-venta' ),
+				'io_pos_use',
+				$terminal_url
+			);
+		}
 	}
 
 	/**
@@ -192,7 +219,7 @@ class IO_POS_Admin_Settings {
 			),
 			'production' => array(
 				'title'  => __( 'Producción', 'io-punto-venta' ),
-				'intro'  => __( 'Estados internos del taller. No reemplazan a los estados de WooCommerce, así los informes del punto de venta siguen siendo correctos.', 'io-punto-venta' ),
+				'intro'  => __( 'La pantalla de producción es el Panel Taller: el mostrador escribe en sus mismas claves (fase y fecha de entrega), no crea otras. Estas fases solo se usan como respaldo si el Panel Taller no está activo.', 'io-punto-venta' ),
 				'fields' => array(
 					'production_enabled'                => array(
 						'type'  => 'checkbox',
@@ -219,11 +246,6 @@ class IO_POS_Admin_Settings {
 						'label'   => __( 'Estado de WooCommerce para los trabajos', 'io-punto-venta' ),
 						'desc'    => __( 'YITH POS marca las ventas como completadas. Un trabajo que todavía hay que producir conviene dejarlo en procesando.', 'io-punto-venta' ),
 						'options' => $order_statuses,
-					),
-					'production_complete_order_on_done' => array(
-						'type'  => 'checkbox',
-						'label' => __( 'Completar el pedido al marcarlo como entregado', 'io-punto-venta' ),
-						'desc'  => __( 'Solo si no quedó saldo pendiente.', 'io-punto-venta' ),
 					),
 				),
 			),
@@ -299,6 +321,11 @@ class IO_POS_Admin_Settings {
 						'type'    => 'select',
 						'label'   => __( 'Estado cuando no se cobra nada', 'io-punto-venta' ),
 						'options' => $order_statuses,
+					),
+					'payment_send_email'     => array(
+						'type'  => 'checkbox',
+						'label' => __( 'Avisar al cliente cuando queda saldo', 'io-punto-venta' ),
+						'desc'  => __( 'Manda el mismo correo de seña que el metabox «Registro de Pagos». En las ventas cobradas enteras no se manda nada, porque el cliente ya se lleva el comprobante.', 'io-punto-venta' ),
 					),
 					'notify_emails'          => array(
 						'type'  => 'checkbox',

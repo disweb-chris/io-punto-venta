@@ -19,10 +19,26 @@ mostrador ni tocar el backend.
 | **Historial** | Ventas del día, propias o con saldo, con reimpresión y cobro del saldo pendiente. |
 | **Cajeros** | Rol propio y permisos por acción: vender, cambiar precios, hacer descuentos, cobrar señas, cobrar saldos. |
 | **Trabajos** | Fecha de entrega, horario, forma de entrega, prioridad y los campos propios que definas. |
-| **Producción** | Estados internos del taller, tablero por fecha de entrega y columnas en el listado de pedidos. |
 
-No incluye apertura y cierre de caja con arqueo: las ventas quedan registradas
-en el pedido y en los informes de WooCommerce.
+No incluye apertura y cierre de caja con arqueo, ni pantalla de producción: la
+producción la maneja el **Panel Taller**, y el mostrador escribe en sus mismas
+claves.
+
+## Se apoya en lo que ya tenés
+
+El mostrador no crea sistemas paralelos: usa los que ya están andando.
+
+| Dato | Clave | Quién más lo usa |
+|---|---|---|
+| Fecha de entrega | `_wn_delivery_date` | Panel Taller (columna Entrega y su tablero) |
+| Fase de producción | `_wn_fase` | Panel Taller (columna Fase). Si está el snippet de fases, el cambio pasa por `wn_phase_transition()`, así queda registrado |
+| Pedido urgente | `_io_urgente` | Panel Taller |
+| Archivo / enlace | `_io_drive_link` | Panel Taller |
+| Cobros | `_io_pagos_historial` | Metabox «Registro de Pagos» y el módulo de finanzas |
+
+Por eso el mostrador **no agrega** columnas de Entrega ni de Producción al
+listado de pedidos: las que ya están muestran lo mismo. Lo único que suma es la
+columna **Cobrado**, con el saldo pendiente.
 
 ---
 
@@ -31,9 +47,9 @@ en el pedido y en los informes de WooCommerce.
 1. Subí el ZIP en **Plugins → Añadir nuevo → Subir plugin** y activalo.
 2. Al activarse crea la página **Mostrador** (`/mostrador`), el rol **Cajero del
    mostrador** y los permisos.
-3. Entrá a **Imprenta → Ajustes** y revisá los métodos de cobro y el
+3. Entrá a **Mostrador → Ajustes** y revisá los métodos de cobro y el
    comprobante.
-4. Abrí **Imprenta → Abrir el mostrador**.
+4. Abrí **Mostrador → Abrir el mostrador**.
 
 Requiere WooCommerce. Funciona con el guardado clásico de pedidos y con HPOS.
 
@@ -47,8 +63,8 @@ Cuando quieras cortar:
 
 1. Probá una venta completa y una con seña en el mostrador nuevo.
 2. Desactivá YITH Point of Sale.
-3. Listo: los pedidos viejos siguen en WooCommerce y el tablero de producción
-   los sigue viendo. Lo único que se pierde son los informes de caja de YITH.
+3. Listo: los pedidos viejos siguen en WooCommerce y el Panel Taller los sigue
+   viendo. Lo único que se pierde son los informes de caja de YITH.
 
 No hace falta migrar nada: los dos escriben pedidos normales de WooCommerce.
 
@@ -98,27 +114,26 @@ En los dos casos queda una nota en el pedido y el estado se ajusta solo.
 
 ### Datos que quedan en el pedido
 
+Además de las claves compartidas de más arriba:
+
 | Meta | Contenido |
 |---|---|
 | `_io_pos_order` | Marca que la venta salió de este mostrador |
 | `_io_pos_cashier` / `_io_pos_cashier_name` | Quién la hizo |
-| `_io_pos_payments` | Lista de cobros: `method`, `amount`, `date`, `user_id` |
-| `_io_pos_paid_total` | Total cobrado |
-| `_io_pos_balance_due` | Saldo pendiente |
+| `_io_pos_paid_total` / `_io_pos_balance_due` | Cobrado y saldo, calculados del historial (sirven para filtrar y ordenar) |
 | `_io_pos_change` | Vuelto entregado |
-| `_io_pos_delivery_date` | Fecha de entrega (`Y-m-d`) |
 | `_io_pos_delivery_time` / `_io_pos_delivery_method` / `_io_pos_priority` | Horario, forma de entrega, prioridad |
-| `_io_pos_production_status` | Estado de producción |
 | `_io_pos_production_notes` | Notas de producción |
 | `_io_pos_field_<clave>` | Cada campo propio del trabajo |
 
-Para la app de finanzas: **lo vendido** es el total del pedido
-(`$order->get_total()`) y **lo cobrado** es `_io_pos_paid_total`. Cada vez que
-entra plata se dispara la acción `io_pos_payment_recorded( $order, $payment )`,
-que es el punto donde engancharla.
+Para el módulo de finanzas: **lo vendido** es el total del pedido
+(`$order->get_total()`) y **lo cobrado** sale de `_io_pagos_historial`, la misma
+lista que llena el metabox «Registro de Pagos». Cada cobro dispara además la
+acción `io_pos_payment_recorded( $order, $payment )`.
 
-> Si el desarrollo que ya tenés para registrar señas guarda los datos con otras
-> claves, hay que mapearlas: pasame cómo las guarda y lo conecto.
+Los tipos de cobro se calculan solos con los nombres que ya usás: **seña** si
+queda saldo, **saldo** si completa un pedido que ya tenía pagos, y **pago** si
+se cobra todo de una.
 
 ---
 
@@ -161,18 +176,27 @@ clave|Etiqueta|tipo|opciones|marcas
 - **opciones**: separadas por coma, solo para `select`
 - **marcas**: `obligatorio` y/o `ticket` (se imprime en el comprobante)
 
+Con `clave=_otra_meta` el campo se guarda en una clave que ya usa otro módulo:
+así es como «Archivo / enlace» escribe en el `_io_drive_link` del Panel Taller.
+
 ```
 material|Material|text|||
 medidas|Medidas|text|||ticket
 terminacion|Terminación|select|Sin terminación,Laminado mate,Troquelado||
-archivo|Archivo / enlace|text|||
+archivo=_io_drive_link|Archivo / enlace|text|||
 ```
 
-### Métodos de cobro y estados
+### Métodos de cobro y fases
 
-Los métodos se cargan igual, `clave|Etiqueta` por línea. Los estados de
-producción también. En Cobros se elige qué estado de WooCommerce lleva el
-pedido según se haya cobrado todo, una parte o nada.
+Los métodos se cargan igual, `clave|Etiqueta` por línea, y conviene que las
+claves sean las mismas que usa el metabox de pagos (`efectivo`,
+`transferencia`, `mercadopago`).
+
+Las fases salen del Panel Taller cuando está activo; las que figuran en los
+ajustes son solo el respaldo para cuando no lo está.
+
+En Cobros se elige qué estado de WooCommerce lleva el pedido según se haya
+cobrado todo, una parte o nada.
 
 Por defecto **no se mandan los correos de WooCommerce** en las ventas del
 mostrador, para no llenar de mails al cliente y a la tienda por cada venta de
@@ -189,7 +213,8 @@ PHP:
 - `io_pos_order_target_status( $status, $order )` — el estado que se le pone.
 - `io_pos_payment_methods`, `io_pos_production_statuses`, `io_pos_job_schema`.
 - `io_pos_terminal_bootstrap`, `io_pos_terminal_products_query`,
-  `io_pos_terminal_history_query`, `io_pos_search_ids`, `io_pos_board_query_args`.
+  `io_pos_terminal_history_query`, `io_pos_search_ids`,
+  `io_pos_terminal_keep_styles`.
 - `io_pos_production_status_changed`, `io_pos_customer_job_rows`.
 
 La plantilla de la pantalla se puede reemplazar copiándola al tema en
@@ -214,11 +239,14 @@ Rutas propias bajo `io-pos/v1`, con los permisos de arriba:
   WooCommerce cuando está activado HPOS; con el guardado clásico busca sobre los
   datos de facturación. Por número de pedido funciona igual en los dos casos.
 - No hay apertura ni cierre de caja con arqueo.
+- En el mostrador se descargan los estilos del tema, porque le rompían los
+  controles. Si necesitás mantener alguno, está el filtro
+  `io_pos_terminal_keep_styles`.
 
 ### Pruebas
 
 ```
-php tests/run-tests.php     # 102 pruebas del lado de WordPress
+php tests/run-tests.php      # 116 pruebas del lado de WordPress
 node tests/check-terminal.js # 10 pruebas de la pantalla
 ```
 

@@ -51,12 +51,12 @@ class IO_POS_Settings {
 			'job_priorities'                  => "Normal\nUrgente\nExpress (24 h)",
 			'job_show_on_receipt'             => 'yes',
 			'job_show_on_customer_emails'     => 'yes',
-			'job_custom_fields'               => "material|Material|text|||\nmedidas|Medidas|text|||ticket\nterminacion|Terminación|select|Sin terminación,Laminado mate,Laminado brillante,Troquelado,Ojalillos||\narchivo|Archivo / enlace|text|||",
+			'job_custom_fields'               => "material|Material|text|||\nmedidas|Medidas|text|||ticket\nterminacion|Terminación|select|Sin terminación,Laminado mate,Laminado brillante,Troquelado,Ojalillos||\narchivo=_io_drive_link|Archivo / enlace|text|||",
 
 			// Producción.
 			'production_enabled'              => 'yes',
-			'production_statuses'             => "pendiente|Pendiente\ndiseno|En diseño\naprobacion|Esperando aprobación\nproduccion|En producción\nlisto|Listo para entregar\nentregado|Entregado",
-			'production_default'              => 'pendiente',
+			'production_statuses'             => "diseno|Diseño\nproduccion|Producción\nterminacion|Terminación\ntaller|Taller\nentregado|Entregado",
+			'production_default'              => 'diseno',
 			'production_done'                 => 'entregado',
 			'production_order_status'         => 'processing',
 			'production_complete_order_on_done' => 'yes',
@@ -71,7 +71,7 @@ class IO_POS_Settings {
 			'terminal_customer_label'         => 'Consumidor final',
 
 			// Cobros.
-			'payment_methods'                 => "efectivo|Efectivo\ntransferencia|Transferencia\ndebito|Tarjeta de débito\ncredito|Tarjeta de crédito\nmercadopago|Mercado Pago",
+			'payment_methods'                 => "efectivo|Efectivo\ntransferencia|Transferencia\nmercadopago|Mercado Pago",
 			'payment_cash_method'             => 'efectivo',
 			'payment_allow_partial'           => 'yes',
 			'payment_status_paid'             => 'completed',
@@ -86,6 +86,7 @@ class IO_POS_Settings {
 			'receipt_show_job'                => 'yes',
 			'receipt_auto_print'              => 'yes',
 			'notify_emails'                   => 'no',
+			'payment_send_email'              => 'yes',
 		);
 	}
 

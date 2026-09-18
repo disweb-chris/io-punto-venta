@@ -19,6 +19,7 @@ class IO_POS_Terminal {
 		add_filter( 'template_include', array( $this, 'load_template' ), 99 );
 		add_filter( 'show_admin_bar', array( $this, 'hide_admin_bar' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'dequeue_theme_styles' ), 999 );
 		add_action( 'template_redirect', array( $this, 'handle_logout' ) );
 	}
 
@@ -130,6 +131,65 @@ class IO_POS_Terminal {
 	}
 
 	/**
+	 * A dónde lleva el botón de la esquina: al taller si está, si no a pedidos.
+	 *
+	 * @return string
+	 */
+	public static function get_admin_link_url() {
+		if ( ! current_user_can( 'edit_shop_orders' ) ) {
+			return '';
+		}
+
+		if ( function_exists( 'io_taller_render_page' ) ) {
+			return admin_url( 'admin.php?page=io-panel-taller' );
+		}
+
+		if ( class_exists( \Automattic\WooCommerce\Utilities\OrderUtil::class )
+			&& \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled() ) {
+			return admin_url( 'admin.php?page=wc-orders' );
+		}
+
+		return admin_url( 'edit.php?post_type=shop_order' );
+	}
+
+	/**
+	 * Texto del botón de la esquina.
+	 *
+	 * @return string
+	 */
+	public static function get_admin_link_label() {
+		return function_exists( 'io_taller_render_page' )
+			? __( 'Taller', 'io-punto-venta' )
+			: __( 'Pedidos', 'io-punto-venta' );
+	}
+
+	/**
+	 * Saca del mostrador los estilos del tema y de otros plugins.
+	 *
+	 * La pantalla es una aplicación completa, no una página del sitio: los
+	 * estilos del tema le pisan los controles (menús desplegables cortados,
+	 * botones sin alto) y no aportan nada acá.
+	 */
+	public function dequeue_theme_styles() {
+		if ( ! self::is_terminal() || ! self::can_use() ) {
+			return;
+		}
+
+		/**
+		 * Estilos que igual se mantienen en el mostrador.
+		 *
+		 * @param string[] $keep Identificadores de hojas de estilo.
+		 */
+		$keep = apply_filters( 'io_pos_terminal_keep_styles', array( 'io-pos-terminal' ) );
+
+		foreach ( (array) wp_styles()->queue as $handle ) {
+			if ( ! in_array( $handle, $keep, true ) ) {
+				wp_dequeue_style( $handle );
+			}
+		}
+	}
+
+	/**
 	 * Datos con los que arranca la pantalla.
 	 *
 	 * @return array
@@ -197,7 +257,8 @@ class IO_POS_Terminal {
 			'restUrl'        => esc_url_raw( IO_POS_REST_API::get_base_url() ),
 			'nonce'          => wp_create_nonce( 'wp_rest' ),
 			'logoutUrl'      => wp_nonce_url( add_query_arg( 'io-pos-logout', 1, io_pos_get_terminal_url() ), 'io-pos-logout' ),
-			'adminUrl'       => current_user_can( 'edit_shop_orders' ) ? admin_url( 'admin.php?page=io-pos-board' ) : '',
+			'adminUrl'       => self::get_admin_link_url(),
+			'adminLabel'     => self::get_admin_link_label(),
 			'title'          => IO_POS_Settings::get( 'terminal_title' ),
 			'user'           => array(
 				'id'           => get_current_user_id(),

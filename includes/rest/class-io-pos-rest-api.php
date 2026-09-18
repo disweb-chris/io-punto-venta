@@ -406,13 +406,12 @@ class IO_POS_REST_API {
 			return new WP_Error( 'io_pos_email_exists', __( 'Ya hay un cliente con ese correo.', 'io-punto-venta' ), array( 'status' => 400 ) );
 		}
 
-		$base_login = sanitize_user( $email ? current( explode( '@', $email ) ) : $first_name . $last_name . $phone, true );
-		$base_login = $base_login ? $base_login : 'cliente';
+		$base_login = io_pos_build_username( $first_name, $last_name, $company );
 		$login      = $base_login;
 		$suffix     = 1;
 
 		while ( username_exists( $login ) ) {
-			$login = $base_login . '-' . ++$suffix;
+			$login = $base_login . '_' . ++$suffix;
 		}
 
 		$customer_id = wp_insert_user(
@@ -461,24 +460,21 @@ class IO_POS_REST_API {
 	 * @return array
 	 */
 	public static function format_customer( $customer_id ) {
-		$user = get_userdata( $customer_id );
+		$fields = io_pos_get_customer_fields( $customer_id );
 
-		if ( ! $user ) {
+		if ( ! $fields ) {
 			return array();
 		}
 
-		$first   = get_user_meta( $customer_id, 'billing_first_name', true );
-		$last    = get_user_meta( $customer_id, 'billing_last_name', true );
-		$company = get_user_meta( $customer_id, 'billing_company', true );
-		$name    = trim( $first . ' ' . $last );
+		$name = trim( $fields['first_name'] . ' ' . $fields['last_name'] );
 
 		return array(
 			'id'      => (int) $customer_id,
-			'name'    => $name ? $name : $user->display_name,
-			'company' => $company,
-			'phone'   => get_user_meta( $customer_id, 'billing_phone', true ),
-			'email'   => $user->user_email,
-			'vat'     => get_user_meta( $customer_id, 'billing_vat', true ),
+			'name'    => $name ? $name : $fields['company'],
+			'company' => $fields['company'],
+			'phone'   => $fields['phone'],
+			'email'   => $fields['email'],
+			'vat'     => $fields['vat'],
 		);
 	}
 

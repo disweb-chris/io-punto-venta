@@ -327,3 +327,74 @@ if ( ! function_exists( 'io_pos_tracks_payments' ) ) {
 		return (bool) IO_POS_Payments::get_payments( $order );
 	}
 }
+
+if ( ! function_exists( 'io_pos_get_customer_fields' ) ) {
+	/**
+	 * Datos de un cliente, con respaldo en los campos del usuario.
+	 *
+	 * Muchos clientes cargados a mano en WordPress no tienen los campos de
+	 * facturación, así que si están vacíos se usa el nombre del usuario.
+	 *
+	 * @param int $customer_id El ID del usuario.
+	 *
+	 * @return array<string,string>
+	 */
+	function io_pos_get_customer_fields( $customer_id ) {
+		$user = get_userdata( $customer_id );
+
+		if ( ! $user ) {
+			return array();
+		}
+
+		$fields = array(
+			'first_name' => (string) get_user_meta( $customer_id, 'billing_first_name', true ),
+			'last_name'  => (string) get_user_meta( $customer_id, 'billing_last_name', true ),
+			'company'    => (string) get_user_meta( $customer_id, 'billing_company', true ),
+			'phone'      => (string) get_user_meta( $customer_id, 'billing_phone', true ),
+			'email'      => (string) get_user_meta( $customer_id, 'billing_email', true ),
+			'address_1'  => (string) get_user_meta( $customer_id, 'billing_address_1', true ),
+			'city'       => (string) get_user_meta( $customer_id, 'billing_city', true ),
+			'vat'        => (string) get_user_meta( $customer_id, 'billing_vat', true ),
+		);
+
+		if ( ! $fields['first_name'] && ! $fields['last_name'] ) {
+			$fields['first_name'] = (string) $user->first_name;
+			$fields['last_name']  = (string) $user->last_name;
+		}
+
+		if ( ! $fields['first_name'] && ! $fields['last_name'] ) {
+			$fields['first_name'] = (string) $user->display_name;
+		}
+
+		if ( ! $fields['email'] ) {
+			$fields['email'] = (string) $user->user_email;
+		}
+
+		if ( ! $fields['phone'] ) {
+			$fields['phone'] = (string) get_user_meta( $customer_id, 'shipping_phone', true );
+		}
+
+		return $fields;
+	}
+}
+
+if ( ! function_exists( 'io_pos_build_username' ) ) {
+	/**
+	 * Arma el nombre de usuario de un cliente nuevo: nombre_apellido.
+	 *
+	 * @param string $first   Nombre.
+	 * @param string $last    Apellido.
+	 * @param string $company Empresa, por si no hay nombre.
+	 *
+	 * @return string
+	 */
+	function io_pos_build_username( $first, $last, $company = '' ) {
+		$base = trim( $first . ' ' . $last );
+		$base = $base ? $base : $company;
+		$base = remove_accents( $base );
+		$base = strtolower( trim( preg_replace( '/[\s._-]+/', '_', $base ), '_' ) );
+		$base = sanitize_user( $base, true );
+
+		return $base ? $base : 'cliente';
+	}
+}

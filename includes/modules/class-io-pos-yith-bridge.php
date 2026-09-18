@@ -201,9 +201,9 @@ class IO_POS_Yith_Bridge {
 			'delivery_date_formatted' => io_pos_format_date( IO_POS_Job::get_delivery_date( $order ) ),
 			'production_status'       => $production_status,
 			'production_status_label' => $production_status ? IO_POS_Job::get_production_status_label( $production_status ) : '',
-			'deposit'                 => (float) $order->get_meta( IO_POS_Job::META_DEPOSIT ),
+			'deposit'                 => IO_POS_Payments::get_paid_total( $order ),
 			'balance_due'             => io_pos_get_balance_due( $order ),
-			'job_total'               => (float) $order->get_meta( IO_POS_Job::META_JOB_TOTAL ),
+			'job_total'               => (float) $order->get_total(),
 		);
 
 		return $response;

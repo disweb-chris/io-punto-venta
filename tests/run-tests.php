@@ -79,12 +79,11 @@ io_pos_assert(
 io_pos_assert(
 	'pares clave|etiqueta',
 	array(
-		'pendiente'  => 'Pendiente',
-		'diseno'     => 'En diseño',
-		'aprobacion' => 'Esperando aprobación',
-		'produccion' => 'En producción',
-		'listo'      => 'Listo para entregar',
-		'entregado'  => 'Entregado',
+		'diseno'      => 'Diseño',
+		'produccion'  => 'Producción',
+		'terminacion' => 'Terminación',
+		'taller'      => 'Taller',
+		'entregado'   => 'Entregado',
 	),
 	IO_POS_Settings::get_pairs( 'production_statuses' )
 );
@@ -167,7 +166,7 @@ io_pos_assert( 'opción inválida descartada', false, isset( $meta[ IO_POS_Job::
 io_pos_assert( 'texto recortado', 'Cartulina 300g', $meta['_io_pos_field_material'] );
 io_pos_assert( 'opción válida conservada', 'Laminado mate', $meta['_io_pos_field_terminacion'] );
 io_pos_assert( 'número normalizado', '12.5', $meta['_io_pos_field_cantidad'] );
-io_pos_assert( 'estado inválido pasa al inicial', 'pendiente', $meta[ IO_POS_Job::META_STATUS ] );
+io_pos_assert( 'fase inválida pasa a la inicial', 'diseno', $meta[ IO_POS_Job::META_STATUS ] );
 io_pos_assert( 'no toca lo cobrado, que es del pedido', '1500', $meta['_io_pos_balance_due'] );
 
 $empty = new WC_Order();
@@ -355,6 +354,56 @@ IO_POS_Payments::add_payment( $fallback, 'efectivo', 400, array( 'silent' => tru
 io_pos_assert( 'estado inválido cae en procesando', 'processing', IO_POS_Payments::get_target_status( $fallback ) );
 
 /* ---------------------------------------------------------------------- */
+io_pos_section( 'Historial de pagos compartido' );
+
+update_option(
+	IO_POS_Settings::OPTION,
+	array(
+		'payment_methods'       => "efectivo|Efectivo\ntransferencia|Transferencia\nmercadopago|Mercado Pago",
+		'payment_cash_method'   => 'efectivo',
+		'payment_allow_partial' => 'yes',
+	)
+);
+$reset->setValue( null, null );
+
+$shared = new WC_Order( array(), 10000 );
+
+IO_POS_Payments::add_payment( $shared, 'transferencia', 4000, array( 'silent' => true ) );
+$history = $shared->get_meta( IO_POS_Payments::META_HISTORY );
+
+io_pos_assert( 'se guarda en la clave del metabox de pagos', true, is_array( $history ) && 1 === count( $history ) );
+io_pos_assert( 'usa las claves del metabox', array( 'tipo', 'metodo', 'monto', 'fecha', 'user' ), array_keys( $history[0] ) );
+io_pos_assert( 'un cobro parcial es una seña', 'seña', $history[0]['tipo'] );
+io_pos_assert( 'guarda el método tal cual', 'transferencia', $history[0]['metodo'] );
+io_pos_assert( 'guarda el monto como número', 4000.0, $history[0]['monto'] );
+
+IO_POS_Payments::add_payment( $shared, 'efectivo', 6000, array( 'silent' => true ) );
+$history = $shared->get_meta( IO_POS_Payments::META_HISTORY );
+
+io_pos_assert( 'el segundo cobro es el saldo', 'saldo', $history[1]['tipo'] );
+io_pos_assert( 'no queda saldo', 0.0, IO_POS_Payments::get_balance( $shared ) );
+
+$full = new WC_Order( array(), 2500 );
+IO_POS_Payments::add_payment( $full, 'efectivo', 2500, array( 'silent' => true ) );
+$history = $full->get_meta( IO_POS_Payments::META_HISTORY );
+
+io_pos_assert( 'cobrar todo de una es un pago', 'pago', $history[0]['tipo'] );
+
+$legacy = new WC_Order( array( '_io_pagos_historial' => array( array( 'tipo' => 'seña', 'metodo' => 'efectivo', 'monto' => 3000 ) ) ), 5000 );
+
+io_pos_assert( 'lee los pagos que ya existían', 3000.0, IO_POS_Payments::get_paid_total( $legacy ) );
+io_pos_assert( 'calcula el saldo de esos pagos', 2000.0, IO_POS_Payments::get_balance( $legacy ) );
+
+/* ---------------------------------------------------------------------- */
+io_pos_section( 'Nombre de usuario del cliente' );
+
+io_pos_assert( 'nombre y apellido', 'juan_perez', io_pos_build_username( 'Juan', 'Pérez' ) );
+io_pos_assert( 'con acentos y espacios', 'jose_maria_garcia_lopez', io_pos_build_username( 'José María', 'García López' ) );
+io_pos_assert( 'solo nombre', 'ana', io_pos_build_username( 'Ana', '' ) );
+io_pos_assert( 'sin nombre usa la empresa', 'imprenta_online', io_pos_build_username( '', '', 'Imprenta Online' ) );
+io_pos_assert( 'sin nada', 'cliente', io_pos_build_username( '', '', '' ) );
+
+/* ---------------------------------------------------------------------- */
 io_pos_section( 'Emisión del pedido' );
 
 $check = new ReflectionMethod( 'IO_POS_Order_Builder', 'check_expected_total' );
@@ -439,7 +488,6 @@ $remaining = array(
 	'modules/class-io-pos-emails.php'         => 'IO_POS_Emails',
 	'modules/class-io-pos-yith-bridge.php'    => 'IO_POS_Yith_Bridge',
 	'admin/class-io-pos-admin-orders.php'     => 'IO_POS_Admin_Orders',
-	'admin/class-io-pos-admin-board.php'      => 'IO_POS_Admin_Board',
 	'admin/class-io-pos-admin-settings.php'   => 'IO_POS_Admin_Settings',
 );
 

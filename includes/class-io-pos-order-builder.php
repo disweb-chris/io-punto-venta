@@ -62,6 +62,7 @@ class IO_POS_Order_Builder {
 
 			self::add_shipping( $order, $payload );
 			self::set_job_data( $order, $payload );
+			self::set_urgent_flag( $order );
 
 			$order->update_meta_data( self::META_POS, '1' );
 			$order->update_meta_data( self::META_CASHIER, (string) get_current_user_id() );
@@ -103,6 +104,8 @@ class IO_POS_Order_Builder {
 			IO_POS_Job::sanitize_order_meta( $order );
 
 			wc_maybe_reduce_stock_levels( $order->get_id() );
+
+			self::notify_payment( $order );
 
 			/**
 			 * Se dispara cuando el mostrador emite un pedido.
@@ -322,34 +325,24 @@ class IO_POS_Order_Builder {
 	protected static function set_customer( $order, array $payload ) {
 		$customer_id = absint( $payload['customer_id'] ?? 0 );
 
-		if ( $customer_id && get_userdata( $customer_id ) ) {
-			$order->set_customer_id( $customer_id );
+		if ( $customer_id ) {
+			$fields = io_pos_get_customer_fields( $customer_id );
 
-			$fields = array(
-				'first_name' => get_user_meta( $customer_id, 'billing_first_name', true ),
-				'last_name'  => get_user_meta( $customer_id, 'billing_last_name', true ),
-				'company'    => get_user_meta( $customer_id, 'billing_company', true ),
-				'phone'      => get_user_meta( $customer_id, 'billing_phone', true ),
-				'email'      => get_user_meta( $customer_id, 'billing_email', true ),
-				'address_1'  => get_user_meta( $customer_id, 'billing_address_1', true ),
-				'city'       => get_user_meta( $customer_id, 'billing_city', true ),
-			);
+			if ( $fields ) {
+				$order->set_customer_id( $customer_id );
 
-			if ( ! $fields['email'] ) {
-				$user = get_userdata( $customer_id );
+				$vat = $fields['vat'];
 
-				$fields['email'] = $user ? $user->user_email : '';
+				unset( $fields['vat'] );
+
+				$order->set_address( array_filter( $fields, 'strlen' ), 'billing' );
+
+				if ( $vat ) {
+					$order->update_meta_data( '_billing_vat', $vat );
+				}
+
+				return;
 			}
-
-			$order->set_address( array_filter( $fields, 'strlen' ), 'billing' );
-
-			$vat = get_user_meta( $customer_id, 'billing_vat', true );
-
-			if ( $vat ) {
-				$order->update_meta_data( '_billing_vat', $vat );
-			}
-
-			return;
 		}
 
 		$guest = isset( $payload['customer'] ) && is_array( $payload['customer'] ) ? $payload['customer'] : array();
@@ -482,12 +475,32 @@ class IO_POS_Order_Builder {
 			return;
 		}
 
-		$status   = sanitize_key( (string) ( $payload['production_status'] ?? '' ) );
-		$statuses = IO_POS_Job::get_production_statuses();
+		$status = sanitize_key( (string) ( $payload['production_status'] ?? '' ) );
 
-		if ( isset( $statuses[ $status ] ) ) {
-			$order->update_meta_data( IO_POS_Job::META_STATUS, $status );
+		if ( ! $status ) {
+			$status = IO_POS_Job::get_default_production_status();
 		}
+
+		IO_POS_Job::set_production_status( $order, $status, 'mostrador' );
+	}
+
+	/**
+	 * Marca el pedido como urgente si la prioridad elegida lo dice.
+	 *
+	 * Usa la misma clave que el Panel Taller, para que el aviso se vea allá.
+	 *
+	 * @param WC_Order $order El pedido.
+	 */
+	protected static function set_urgent_flag( $order ) {
+		$priority = (string) $order->get_meta( IO_POS_Job::META_PRIORITY );
+
+		if ( '' === $priority ) {
+			return;
+		}
+
+		$urgent = (bool) preg_match( '/urgen|express/i', $priority );
+
+		$order->update_meta_data( IO_POS_Job::META_URGENT, $urgent ? '1' : '0' );
 	}
 
 	/**
@@ -554,6 +567,41 @@ class IO_POS_Order_Builder {
 		IO_POS_Payments::recalculate( $order, false );
 
 		return true;
+	}
+
+	/**
+	 * Manda el aviso de seña al cliente.
+	 *
+	 * Si se cobró con dos métodos va un solo correo con el total, y si se cobró
+	 * todo no va ninguno.
+	 *
+	 * @param WC_Order $order El pedido.
+	 */
+	protected static function notify_payment( $order ) {
+		$paid = IO_POS_Payments::get_paid_total( $order );
+
+		if ( $paid <= 0 ) {
+			return;
+		}
+
+		$balance = IO_POS_Payments::get_balance( $order );
+
+		// Solo cuando queda saldo: en una venta cobrada entera el cliente ya se
+		// lleva el comprobante impreso, un correo más sería ruido.
+		if ( $balance <= 0 ) {
+			return;
+		}
+
+		$methods = array_keys( IO_POS_Payments::get_totals_by_method( $order ) );
+
+		IO_POS_Payments::maybe_send_email(
+			$order,
+			array(
+				'tipo'   => IO_POS_Payments::TYPE_DEPOSIT,
+				'monto'  => $paid,
+				'metodo' => (string) reset( $methods ),
+			)
+		);
 	}
 
 	/**
