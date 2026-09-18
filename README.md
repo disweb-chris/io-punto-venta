@@ -298,10 +298,18 @@ Rutas propias bajo `io-pos/v1`, con los permisos de arriba:
   controles. Si necesitás mantener alguno, está el filtro
   `io_pos_terminal_keep_styles`.
 
+### Actualizaciones
+
+Los cambios que tocan ajustes ya guardados se aplican como migraciones con
+nombre, registradas en la opción `io_pos_migrations`. No dependen del número de
+versión: si una no llegó a correr —por ejemplo porque la activación selló la
+versión antes de aplicarla— corre en la siguiente carga del escritorio. Una
+instalación nueva las da por hechas, porque arranca con los valores por defecto.
+
 ### Pruebas
 
 ```
-php tests/run-tests.php      # 163 pruebas del lado de WordPress
+php tests/run-tests.php      # 169 pruebas del lado de WordPress
 node tests/check-terminal.js # 15 pruebas de la pantalla
 ```
 

@@ -615,18 +615,33 @@ io_pos_section( 'Enlace de Drive' );
 require_once IO_POS_INCLUDES . 'class-io-pos-install.php';
 require_once IO_POS_INCLUDES . 'modules/class-io-pos-compat.php';
 
-// Los ajustes guardados antes de la 2.1.0 apuntaban a la clave vieja.
-update_option(
-	IO_POS_Settings::OPTION,
-	array(
-		'job_custom_fields'    => "material|Material|text|||\narchivo|Archivo / enlace|text|||",
-		'job_drive_mark_files' => 'yes',
-	)
-);
-$reset->setValue( null, null );
-$fields_reset->setValue( null, null );
+/**
+ * Deja la instalación como estaba antes de actualizar.
+ *
+ * @param string $version Versión sellada en la base.
+ * @param array  $ajustes Ajustes guardados.
+ */
+function io_pos_reset_install( $version, array $ajustes ) {
+	global $reset;
 
-IO_POS_Install::migrate( '2.0.0' );
+	update_option( 'io_pos_version', $version );
+	update_option( IO_POS_Install::OPTION_MIGRATIONS, array() );
+	update_option( IO_POS_Settings::OPTION, $ajustes );
+
+	$reset->setValue( null, null );
+}
+
+$ajustes_viejos = array(
+	'job_custom_fields'    => "material|Material|text|||\narchivo|Archivo / enlace|text|||",
+	'job_drive_mark_files' => 'yes',
+	'receipt_auto_print'   => 'yes',
+	'notify_emails'        => 'no',
+);
+
+// Una instalación que venía de antes, con el campo apuntando a la clave vieja.
+io_pos_reset_install( '2.0.0', $ajustes_viejos );
+
+IO_POS_Install::maybe_upgrade();
 $reset->setValue( null, null );
 $fields_reset->setValue( null, null );
 
@@ -635,24 +650,64 @@ io_pos_assert(
 	"material|Material|text|||\narchivo=_io_drive_link|Archivo / enlace|text|||",
 	IO_POS_Settings::get( 'job_custom_fields' )
 );
+io_pos_assert( 'deja de abrir la impresión al cobrar', 'no', IO_POS_Settings::get( 'receipt_auto_print' ) );
+io_pos_assert( 'y manda los correos de WooCommerce', 'yes', IO_POS_Settings::get( 'notify_emails' ) );
 
 $schema = IO_POS_Job::get_schema();
-io_pos_assert( 'y el campo queda escribiendo en la clave de Drive', '_io_drive_link', $schema['archivo']['meta_key'] );
+io_pos_assert( 'el campo queda escribiendo en la clave de Drive', '_io_drive_link', $schema['archivo']['meta_key'] );
+io_pos_assert( 'no queda nada pendiente', array(), IO_POS_Install::get_pending_migrations() );
 
-// Si ya estaba bien, no se toca.
-update_option( IO_POS_Settings::OPTION, array( 'job_custom_fields' => "archivo=_io_drive_link,_otra|Archivo|text|||" ) );
+// Correr de nuevo no vuelve a pisar lo que la persona haya cambiado después.
+IO_POS_Settings::update( array( 'receipt_auto_print' => 'yes' ) );
+IO_POS_Install::maybe_upgrade();
 $reset->setValue( null, null );
 
-IO_POS_Install::migrate( '2.0.0' );
+io_pos_assert( 'no repite una migración ya aplicada', 'yes', IO_POS_Settings::get( 'receipt_auto_print' ) );
+
+// El caso que falló en la práctica: al subir el ZIP, WordPress reactiva el
+// plugin y la activación sella la versión nueva. Si la migración se saltea ahí,
+// no tiene que quedar perdida para siempre.
+io_pos_reset_install( '2.0.0', $ajustes_viejos );
+
+IO_POS_Install::activate();
 $reset->setValue( null, null );
+$fields_reset->setValue( null, null );
 
 io_pos_assert(
-	'no pisa un mapeo que ya estaba puesto',
-	"archivo=_io_drive_link,_otra|Archivo|text|||",
+	'la activación también migra',
+	"material|Material|text|||\narchivo=_io_drive_link|Archivo / enlace|text|||",
 	IO_POS_Settings::get( 'job_custom_fields' )
 );
 
-io_pos_assert( 'una instalación nueva no migra nada', null, IO_POS_Install::migrate( '' ) );
+// Y si la versión ya quedó sellada sin migrar, se recupera igual.
+io_pos_reset_install( IO_POS_VERSION, $ajustes_viejos );
+
+IO_POS_Install::maybe_upgrade();
+$reset->setValue( null, null );
+$fields_reset->setValue( null, null );
+
+io_pos_assert(
+	'con la versión ya sellada, migra igual',
+	"material|Material|text|||\narchivo=_io_drive_link|Archivo / enlace|text|||",
+	IO_POS_Settings::get( 'job_custom_fields' )
+);
+
+// Una instalación nueva arranca con los valores por defecto: no hay qué migrar.
+io_pos_reset_install( '', $ajustes_viejos );
+
+IO_POS_Install::activate();
+$reset->setValue( null, null );
+$fields_reset->setValue( null, null );
+
+io_pos_assert(
+	'una instalación nueva no toca los ajustes',
+	"material|Material|text|||\narchivo|Archivo / enlace|text|||",
+	IO_POS_Settings::get( 'job_custom_fields' )
+);
+io_pos_assert( 'pero deja las migraciones registradas', array(), IO_POS_Install::get_pending_migrations() );
+
+update_option( IO_POS_Settings::OPTION, array( 'job_drive_mark_files' => 'yes' ) );
+$reset->setValue( null, null );
 
 $compat = new IO_POS_Compat();
 

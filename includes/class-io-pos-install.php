@@ -12,7 +12,8 @@ defined( 'ABSPATH' ) || exit;
  */
 class IO_POS_Install {
 
-	const ROLE = 'io_pos_cashier';
+	const ROLE              = 'io_pos_cashier';
+	const OPTION_MIGRATIONS = 'io_pos_migrations';
 
 	/**
 	 * Permisos que define el plugin.
@@ -53,8 +54,21 @@ class IO_POS_Install {
 	 * Rutina de activación.
 	 */
 	public static function activate() {
+		self::run_install();
+	}
+
+	/**
+	 * Prepara la instalación y aplica lo que falte migrar.
+	 *
+	 * Al subir el ZIP encima, WordPress reactiva el plugin, así que esto corre
+	 * tanto al activar como al entrar al escritorio después de actualizar.
+	 */
+	private static function run_install() {
+		$installed = (string) get_option( 'io_pos_version' );
+
 		self::install_capabilities();
 		self::create_terminal_page();
+		self::migrate( $installed );
 
 		update_option( 'io_pos_version', IO_POS_VERSION );
 	}
@@ -135,54 +149,93 @@ class IO_POS_Install {
 	 * Comprueba si hay que correr la instalación tras una actualización.
 	 */
 	public static function maybe_upgrade() {
-		$installed = (string) get_option( 'io_pos_version' );
-
-		if ( $installed === IO_POS_VERSION ) {
+		// Aunque la versión coincida, puede quedar algo sin migrar: la
+		// activación sella la versión, y una migración que falle o que se
+		// agregue después tiene que poder correr igual.
+		if ( get_option( 'io_pos_version' ) === IO_POS_VERSION && ! self::get_pending_migrations() ) {
 			return;
 		}
 
-		self::install_capabilities();
-		self::create_terminal_page();
-		self::migrate( $installed );
-
-		update_option( 'io_pos_version', IO_POS_VERSION );
+		self::run_install();
 	}
 
 	/**
-	 * Ajusta los valores guardados cuando cambian los criterios.
+	 * Migraciones disponibles, de la más vieja a la más nueva.
 	 *
-	 * Solo toca instalaciones que ya existían: una nueva arranca con los
-	 * valores por defecto.
+	 * Cada una se registra por nombre cuando se aplica, así que no dependen de
+	 * la versión guardada: si una no llegó a correr, corre la próxima vez.
 	 *
-	 * @param string $installed Versión que estaba instalada.
+	 * @return array<string,callable>
+	 */
+	private static function get_migrations() {
+		return array(
+			// El campo del archivo pasó a guardarse en la clave que leen el
+			// plugin de subida de archivos y el Panel Taller.
+			'drive_link_field'   => function () {
+				$fields  = (string) IO_POS_Settings::get( 'job_custom_fields' );
+				$updated = preg_replace( '/^archivo\|/m', 'archivo=_io_drive_link|', $fields );
+
+				if ( $updated && $updated !== $fields ) {
+					IO_POS_Settings::update( array( 'job_custom_fields' => $updated ) );
+				}
+			},
+
+			// Cerrar la venta sin abrir la impresión, y dejar que WooCommerce
+			// mande sus correos como en una compra por la web.
+			'receipt_and_emails' => function () {
+				IO_POS_Settings::update(
+					array(
+						'receipt_auto_print' => 'no',
+						'notify_emails'      => 'yes',
+					)
+				);
+			},
+		);
+	}
+
+	/**
+	 * Migraciones que todavía no se aplicaron.
+	 *
+	 * @return string[]
+	 */
+	public static function get_pending_migrations() {
+		$done = (array) get_option( self::OPTION_MIGRATIONS, array() );
+
+		return array_values( array_diff( array_keys( self::get_migrations() ), $done ) );
+	}
+
+	/**
+	 * Deja registrada una migración como aplicada.
+	 *
+	 * @param string $name Nombre de la migración.
+	 */
+	private static function mark_migration( $name ) {
+		$done = (array) get_option( self::OPTION_MIGRATIONS, array() );
+
+		if ( ! in_array( $name, $done, true ) ) {
+			$done[] = $name;
+
+			update_option( self::OPTION_MIGRATIONS, $done );
+		}
+	}
+
+	/**
+	 * Aplica las migraciones que falten.
+	 *
+	 * Una instalación nueva arranca con los valores por defecto, así que sus
+	 * migraciones se dan por hechas sin tocar nada.
+	 *
+	 * @param string $installed Versión que estaba instalada, vacía si es nueva.
 	 */
 	public static function migrate( $installed ) {
-		if ( ! $installed ) {
-			return;
-		}
+		$migrations = self::get_migrations();
 
-		// 2.4.0: el campo del archivo pasó a guardarse en la clave que leen el
-		// plugin de subida de archivos y el Panel Taller. Los ajustes que ya
-		// estaban guardados seguían con la clave vieja, así que el enlace no se
-		// veía en ningún lado más que en la caja del pedido.
-		if ( version_compare( $installed, '2.4.0', '<' ) ) {
-			$fields  = (string) IO_POS_Settings::get( 'job_custom_fields' );
-			$updated = preg_replace( '/^archivo\|/m', 'archivo=_io_drive_link|', $fields );
-
-			if ( $updated && $updated !== $fields ) {
-				IO_POS_Settings::update( array( 'job_custom_fields' => $updated ) );
+		foreach ( self::get_pending_migrations() as $name ) {
+			if ( $installed && isset( $migrations[ $name ] ) ) {
+				call_user_func( $migrations[ $name ] );
 			}
-		}
 
-		// 2.3.0: cerrar la venta sin abrir la impresión, y dejar que
-		// WooCommerce mande sus correos como en una compra por la web.
-		if ( version_compare( $installed, '2.3.0', '<' ) ) {
-			IO_POS_Settings::update(
-				array(
-					'receipt_auto_print' => 'no',
-					'notify_emails'      => 'yes',
-				)
-			);
+			self::mark_migration( $name );
 		}
 	}
 }

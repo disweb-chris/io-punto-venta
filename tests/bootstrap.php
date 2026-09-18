@@ -189,6 +189,26 @@ function sanitize_user( $username, $strict = false ) {
 
 $GLOBALS['io_pos_test_post_meta'] = array();
 
+function add_role( $role, $label, $caps = array() ) {
+	return null;
+}
+
+function get_role( $role ) {
+	return null;
+}
+
+function get_page_by_path( $path, $output = null, $post_type = 'page' ) {
+	return null;
+}
+
+function wp_insert_post( $args ) {
+	return 999;
+}
+
+function get_post_status( $post_id ) {
+	return 'publish';
+}
+
 function get_post_meta( $post_id, $key = '', $single = false ) {
 	$value = $GLOBALS['io_pos_test_post_meta'][ $post_id ][ $key ] ?? '';
 
