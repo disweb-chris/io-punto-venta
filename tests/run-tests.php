@@ -175,6 +175,56 @@ IO_POS_Job::sanitize_order_meta( $empty );
 io_pos_assert( 'un pedido sin trabajo no recibe estado', array(), $empty->get_all_meta() );
 
 /* ---------------------------------------------------------------------- */
+io_pos_section( 'Campos que alimentan a varios módulos' );
+
+update_option(
+	IO_POS_Settings::OPTION,
+	array(
+		'job_enabled'       => 'yes',
+		'job_customer_note' => 'yes',
+		// Un mismo campo escribiendo en dos claves a la vez.
+		'job_custom_fields' => "archivo=_io_drive_link,_otra_clave|Archivo / enlace|text|||",
+	)
+);
+$reset->setValue( null, null );
+$fields_reset->setValue( null, null );
+
+$schema  = IO_POS_Job::get_schema();
+$archivo = $schema['archivo'];
+
+io_pos_assert( 'la clave principal es la primera', '_io_drive_link', $archivo['meta_key'] );
+io_pos_assert( 'las demás quedan como espejo', array( '_otra_clave' ), $archivo['mirror'] );
+
+$con_archivo = new WC_Order();
+IO_POS_Job::set_field_value( $con_archivo, $archivo, 'https://drive.google.com/file/d/1X' );
+$meta = $con_archivo->get_all_meta();
+
+io_pos_assert( 'se guarda en la clave del taller', 'https://drive.google.com/file/d/1X', $meta['_io_drive_link'] );
+io_pos_assert( 'y también en la otra', 'https://drive.google.com/file/d/1X', $meta['_otra_clave'] );
+
+IO_POS_Job::set_field_value( $con_archivo, $archivo, '' );
+$meta = $con_archivo->get_all_meta();
+
+io_pos_assert( 'vaciarlo lo borra de las dos', array(), $meta );
+
+$nota = $schema['customer_note'];
+$pedido = new WC_Order();
+
+io_pos_assert( 'las observaciones no usan clave meta', '', $nota['meta_key'] );
+
+IO_POS_Job::set_field_value( $pedido, $nota, '  Sin brillo, tapa mate  ' );
+
+io_pos_assert( 'van a la nota del cliente del pedido', 'Sin brillo, tapa mate', $pedido->get_customer_note() );
+io_pos_assert( 'y no ensucian los metadatos', array(), $pedido->get_all_meta() );
+io_pos_assert( 'se leen de vuelta', 'Sin brillo, tapa mate', IO_POS_Job::get_field_value( $pedido, $nota ) );
+
+update_option( IO_POS_Settings::OPTION, array( 'job_customer_note' => 'no' ) );
+$reset->setValue( null, null );
+$fields_reset->setValue( null, null );
+
+io_pos_assert( 'se puede apagar', false, array_key_exists( 'customer_note', IO_POS_Job::get_schema() ) );
+
+/* ---------------------------------------------------------------------- */
 io_pos_section( 'Buscador' );
 
 global $wpdb;

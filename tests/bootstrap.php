@@ -414,6 +414,7 @@ class WC_Order {
 	private $status    = 'pending';
 	private $notes     = array();
 	private $date_paid = null;
+	private $customer_note = '';
 
 	private static $next_id = 1000;
 
@@ -457,6 +458,14 @@ class WC_Order {
 
 	public function get_notes() {
 		return $this->notes;
+	}
+
+	public function get_customer_note() {
+		return $this->customer_note;
+	}
+
+	public function set_customer_note( $note ) {
+		$this->customer_note = (string) $note;
 	}
 
 	public function get_date_paid( $context = 'view' ) {

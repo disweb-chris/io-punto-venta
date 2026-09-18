@@ -207,13 +207,21 @@ clave|Etiqueta|tipo|opciones|marcas
 
 Con `clave=_otra_meta` el campo se guarda en una clave que ya usa otro módulo:
 así es como «Archivo / enlace» escribe en el `_io_drive_link` del Panel Taller.
+Separando varias con coma, el mismo campo alimenta a todas de una sola vez —
+útil para que un dato cargado en el mostrador aparezca en otros paneles sin
+tener que escribirlo dos veces.
 
 ```
 material|Material|text|||
 medidas|Medidas|text|||ticket
 terminacion|Terminación|select|Sin terminación,Laminado mate,Troquelado||
-archivo=_io_drive_link|Archivo / enlace|text|||
+archivo=_io_drive_link,_otra_clave|Archivo / enlace|text|||
 ```
+
+Además del listado, hay un campo **Observaciones del cliente** que no se guarda
+como metadato: va a la **nota del cliente** del pedido, la misma que se llena
+cuando alguien compra por la web y deja un comentario. Se puede apagar desde
+los ajustes.
 
 ### Métodos de cobro y fases
 
@@ -267,6 +275,9 @@ Rutas propias bajo `io-pos/v1`, con los permisos de arriba:
 - La búsqueda del historial por nombre de cliente usa la búsqueda nativa de
   WooCommerce cuando está activado HPOS; con el guardado clásico busca sobre los
   datos de facturación. Por número de pedido funciona igual en los dos casos.
+- El comprobante **no** se imprime solo al cerrar la venta: se imprime con el
+  botón. Abrir el diálogo de impresión demoraba el cierre. Se vuelve a activar
+  desde Ajustes → Comprobante.
 - No hay apertura ni cierre de caja con arqueo.
 - En el mostrador se descargan los estilos del tema, porque le rompían los
   controles. Si necesitás mantener alguno, está el filtro
@@ -275,7 +286,7 @@ Rutas propias bajo `io-pos/v1`, con los permisos de arriba:
 ### Pruebas
 
 ```
-php tests/run-tests.php      # 143 pruebas del lado de WordPress
+php tests/run-tests.php      # 153 pruebas del lado de WordPress
 node tests/check-terminal.js # 15 pruebas de la pantalla
 ```
 

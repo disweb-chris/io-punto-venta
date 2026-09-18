@@ -464,11 +464,7 @@ class IO_POS_Order_Builder {
 				continue;
 			}
 
-			$value = is_scalar( $job[ $key ] ) ? trim( (string) $job[ $key ] ) : '';
-
-			if ( '' !== $value ) {
-				$order->update_meta_data( $field['meta_key'], $value );
-			}
+			IO_POS_Job::set_field_value( $order, $field, $job[ $key ] );
 		}
 
 		if ( ! IO_POS_Settings::is_enabled( 'production_enabled' ) ) {

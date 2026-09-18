@@ -199,6 +199,11 @@ class IO_POS_Admin_Settings {
 						'desc'  => __( 'Un campo por línea con el formato <code>clave|Etiqueta|tipo|opciones|marcas</code>. Tipos: text, textarea, number, date, select. Las opciones se separan con comas (solo para select). Marcas posibles: <code>obligatorio</code> y <code>ticket</code> (se imprime en el comprobante).', 'io-punto-venta' ),
 						'rows'  => 6,
 					),
+					'job_customer_note'           => array(
+						'type'  => 'checkbox',
+						'label' => __( 'Pedir observaciones del cliente', 'io-punto-venta' ),
+						'desc'  => __( 'Se guardan como nota del cliente en el pedido, igual que cuando compran por la web.', 'io-punto-venta' ),
+					),
 					'job_show_on_receipt'         => array(
 						'type'  => 'checkbox',
 						'label' => __( 'Imprimir los datos del trabajo en el ticket', 'io-punto-venta' ),
@@ -372,7 +377,7 @@ class IO_POS_Admin_Settings {
 					'notify_emails'          => array(
 						'type'  => 'checkbox',
 						'label' => __( 'Enviar los correos de WooCommerce', 'io-punto-venta' ),
-						'desc'  => __( 'Desactivado, las ventas del mostrador no mandan mails ni al cliente ni a la tienda.', 'io-punto-venta' ),
+						'desc'  => __( 'Activado, las ventas del mostrador mandan los mismos correos que una compra por la web.', 'io-punto-venta' ),
 					),
 				),
 			),
@@ -410,6 +415,7 @@ class IO_POS_Admin_Settings {
 					'receipt_auto_print'    => array(
 						'type'  => 'checkbox',
 						'label' => __( 'Abrir la impresión al cerrar la venta', 'io-punto-venta' ),
+						'desc'  => __( 'Desactivado, la venta cierra más rápido y el comprobante se imprime solo si apretás el botón.', 'io-punto-venta' ),
 					),
 				),
 			),

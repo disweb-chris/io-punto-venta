@@ -169,7 +169,13 @@ class IO_POS_Admin_Orders {
 		echo '<div class="io-pos-metabox">';
 
 		foreach ( IO_POS_Job::get_schema() as $key => $field ) {
-			$value = (string) $order->get_meta( $field['meta_key'] );
+			// La nota del cliente ya tiene su propio campo en la pantalla del
+			// pedido; repetirla acá sería tener dos editores de lo mismo.
+			if ( $field['customer_note'] ) {
+				continue;
+			}
+
+			$value = IO_POS_Job::get_field_value( $order, $field );
 			$name  = 'io_pos_job[' . $key . ']';
 			$id    = 'io-pos-job-' . $key;
 
@@ -262,18 +268,11 @@ class IO_POS_Admin_Orders {
 		$raw = is_array( $raw ) ? $raw : array();
 
 		foreach ( IO_POS_Job::get_schema() as $key => $field ) {
-			if ( ! array_key_exists( $key, $raw ) ) {
+			if ( $field['customer_note'] || ! array_key_exists( $key, $raw ) ) {
 				continue;
 			}
 
-			$value = is_scalar( $raw[ $key ] ) ? (string) $raw[ $key ] : '';
-
-			if ( '' === trim( $value ) ) {
-				$order->delete_meta_data( $field['meta_key'] );
-				continue;
-			}
-
-			$order->update_meta_data( $field['meta_key'], $value );
+			IO_POS_Job::set_field_value( $order, $field, $raw[ $key ] );
 		}
 
 		$order->save();

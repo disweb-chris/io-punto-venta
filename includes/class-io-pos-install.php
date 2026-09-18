@@ -135,13 +135,41 @@ class IO_POS_Install {
 	 * Comprueba si hay que correr la instalación tras una actualización.
 	 */
 	public static function maybe_upgrade() {
-		if ( get_option( 'io_pos_version' ) === IO_POS_VERSION ) {
+		$installed = (string) get_option( 'io_pos_version' );
+
+		if ( $installed === IO_POS_VERSION ) {
 			return;
 		}
 
 		self::install_capabilities();
 		self::create_terminal_page();
+		self::migrate( $installed );
 
 		update_option( 'io_pos_version', IO_POS_VERSION );
+	}
+
+	/**
+	 * Ajusta los valores guardados cuando cambian los criterios.
+	 *
+	 * Solo toca instalaciones que ya existían: una nueva arranca con los
+	 * valores por defecto.
+	 *
+	 * @param string $installed Versión que estaba instalada.
+	 */
+	public static function migrate( $installed ) {
+		if ( ! $installed ) {
+			return;
+		}
+
+		// 2.3.0: cerrar la venta sin abrir la impresión, y dejar que
+		// WooCommerce mande sus correos como en una compra por la web.
+		if ( version_compare( $installed, '2.3.0', '<' ) ) {
+			IO_POS_Settings::update(
+				array(
+					'receipt_auto_print' => 'no',
+					'notify_emails'      => 'yes',
+				)
+			);
+		}
 	}
 }

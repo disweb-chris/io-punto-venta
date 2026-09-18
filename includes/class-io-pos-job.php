@@ -59,11 +59,17 @@ class IO_POS_Job {
 
 			// "clave=_otra_meta" permite guardar en una clave que ya usa otro
 			// módulo, por ejemplo el enlace de Drive del Panel Taller.
-			$meta_key = '';
+			$meta_keys = array();
 
 			if ( false !== strpos( $raw, '=' ) ) {
-				list( $raw, $meta_key ) = array_map( 'trim', explode( '=', $raw, 2 ) );
+				list( $raw, $meta_spec ) = array_map( 'trim', explode( '=', $raw, 2 ) );
+
+				// Separadas por coma se guarda en todas, para alimentar de una
+				// sola vez a varios módulos.
+				$meta_keys = array_values( array_filter( array_map( 'trim', explode( ',', $meta_spec ) ) ) );
 			}
+
+			$meta_key = $meta_keys ? array_shift( $meta_keys ) : '';
 
 			$key = sanitize_key( $raw );
 
@@ -83,6 +89,7 @@ class IO_POS_Job {
 			$fields[ $key ] = array(
 				'key'      => $key,
 				'meta_key' => $meta_key ? $meta_key : self::META_FIELD_PREFIX . $key,
+				'mirror'   => $meta_keys,
 				'label'    => $parts[1] ?: $parts[0],
 				'type'     => $type,
 				'options'  => $options,
@@ -157,6 +164,22 @@ class IO_POS_Job {
 			$schema[ $key ] = $field;
 		}
 
+		if ( IO_POS_Settings::is_enabled( 'job_customer_note' ) ) {
+			$schema['customer_note'] = array(
+				'key'           => 'customer_note',
+				// Sin clave meta: es la nota del cliente del propio pedido, la
+				// misma que se llena cuando compran por la web.
+				'meta_key'      => '',
+				'customer_note' => true,
+				'label'         => __( 'Observaciones del cliente', 'io-punto-venta' ),
+				'type'          => 'textarea',
+				'options'       => array(),
+				'required'      => false,
+				// El comprobante ya imprime la nota del pedido por su cuenta.
+				'receipt'       => false,
+			);
+		}
+
 		$schema['notes'] = array(
 			'key'      => 'notes',
 			'meta_key' => self::META_NOTES,
@@ -166,6 +189,11 @@ class IO_POS_Job {
 			'required' => false,
 			'receipt'  => false,
 		);
+
+		foreach ( $schema as $key => $field ) {
+			$schema[ $key ]['mirror']        = isset( $field['mirror'] ) ? (array) $field['mirror'] : array();
+			$schema[ $key ]['customer_note'] = ! empty( $field['customer_note'] );
+		}
 
 		/**
 		 * Filter the job form schema.
@@ -184,7 +212,61 @@ class IO_POS_Job {
 	 * @return string[]
 	 */
 	public static function get_meta_keys() {
-		return array_values( array_unique( wp_list_pluck( self::get_schema(), 'meta_key' ) ) );
+		$keys = array();
+
+		foreach ( self::get_schema() as $field ) {
+			if ( $field['meta_key'] ) {
+				$keys[] = $field['meta_key'];
+			}
+		}
+
+		return array_values( array_unique( $keys ) );
+	}
+
+	/**
+	 * Lee el valor de un campo del trabajo.
+	 *
+	 * @param WC_Order $order El pedido.
+	 * @param array    $field El campo del esquema.
+	 *
+	 * @return string
+	 */
+	public static function get_field_value( $order, array $field ) {
+		if ( ! empty( $field['customer_note'] ) ) {
+			return (string) $order->get_customer_note();
+		}
+
+		return $field['meta_key'] ? (string) $order->get_meta( $field['meta_key'] ) : '';
+	}
+
+	/**
+	 * Guarda el valor de un campo del trabajo.
+	 *
+	 * Un campo puede alimentar varias claves a la vez, para que el dato llegue
+	 * a los otros módulos sin tener que cargarlo dos veces.
+	 *
+	 * @param WC_Order $order El pedido.
+	 * @param array    $field El campo del esquema.
+	 * @param string   $value El valor.
+	 */
+	public static function set_field_value( $order, array $field, $value ) {
+		$value = is_scalar( $value ) ? trim( (string) $value ) : '';
+
+		if ( ! empty( $field['customer_note'] ) ) {
+			$order->set_customer_note( sanitize_textarea_field( $value ) );
+
+			return;
+		}
+
+		$keys = array_merge( array( $field['meta_key'] ), (array) ( $field['mirror'] ?? array() ) );
+
+		foreach ( array_filter( $keys ) as $meta_key ) {
+			if ( '' === $value ) {
+				$order->delete_meta_data( $meta_key );
+			} else {
+				$order->update_meta_data( $meta_key, $value );
+			}
+		}
 	}
 
 	/**
@@ -348,7 +430,7 @@ class IO_POS_Job {
 		$details = array();
 
 		foreach ( self::get_schema() as $key => $field ) {
-			$value = (string) $order->get_meta( $field['meta_key'] );
+			$value = self::get_field_value( $order, $field );
 
 			if ( '' === $value ) {
 				continue;
@@ -379,6 +461,10 @@ class IO_POS_Job {
 		$changed = false;
 
 		foreach ( $schema as $field ) {
+			if ( ! $field['meta_key'] ) {
+				continue;
+			}
+
 			$raw = $order->get_meta( $field['meta_key'] );
 
 			if ( '' === (string) $raw ) {
@@ -408,11 +494,7 @@ class IO_POS_Job {
 			if ( (string) $value !== (string) $raw ) {
 				$changed = true;
 
-				if ( '' === $value ) {
-					$order->delete_meta_data( $field['meta_key'] );
-				} else {
-					$order->update_meta_data( $field['meta_key'], $value );
-				}
+				self::set_field_value( $order, $field, $value );
 			}
 		}
 

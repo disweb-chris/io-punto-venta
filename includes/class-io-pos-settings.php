@@ -49,6 +49,7 @@ class IO_POS_Settings {
 			'job_time_slots'                  => "Mañana (9 a 13)\nTarde (14 a 18)",
 			'job_delivery_methods'            => "Retira en el local\nEnvío a domicilio\nEnvío por correo",
 			'job_priorities'                  => "Normal\nUrgente\nExpress (24 h)",
+			'job_customer_note'               => 'yes',
 			'job_show_on_receipt'             => 'yes',
 			'job_show_on_customer_emails'     => 'yes',
 			'job_custom_fields'               => "material|Material|text|||\nmedidas|Medidas|text|||ticket\nterminacion|Terminación|select|Sin terminación,Laminado mate,Laminado brillante,Troquelado,Ojalillos||\narchivo=_io_drive_link|Archivo / enlace|text|||",
@@ -94,8 +95,8 @@ class IO_POS_Settings {
 			'receipt_store_details'           => '',
 			'receipt_footer'                  => '¡Gracias por su compra!',
 			'receipt_show_job'                => 'yes',
-			'receipt_auto_print'              => 'yes',
-			'notify_emails'                   => 'no',
+			'receipt_auto_print'              => 'no',
+			'notify_emails'                   => 'yes',
 			'payment_send_email'              => 'yes',
 		);
 	}
