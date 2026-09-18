@@ -286,10 +286,19 @@ class IO_POS_Terminal {
 			'paymentMethods' => $methods,
 			'categories'     => $categories,
 			'job'            => array(
-				'enabled'     => IO_POS_Settings::is_enabled( 'job_enabled' ) && $fields,
-				'fields'      => $fields,
-				'required'    => IO_POS_Settings::is_enabled( 'job_delivery_required' ),
-				'defaultDays' => IO_POS_Settings::get_int( 'job_default_days', 0, 365 ),
+				'enabled'  => IO_POS_Settings::is_enabled( 'job_enabled' ) && $fields,
+				'fields'   => $fields,
+				'required' => IO_POS_Settings::is_enabled( 'job_delivery_required' ),
+			),
+			'delivery'       => array(
+				'enabled'     => IO_POS_Settings::is_enabled( 'delivery_enabled' ),
+				// Ya viene corrida por la hora de corte y en la zona horaria de
+				// la tienda, así que el navegador solo suma días hábiles.
+				'startDate'   => IO_POS_Delivery::get_start_date()->format( 'Y-m-d' ),
+				'defaultDays' => IO_POS_Delivery::get_default_days(),
+				'workdays'    => IO_POS_Delivery::get_workdays(),
+				'holidays'    => IO_POS_Delivery::get_holidays(),
+				'maxOptions'  => IO_POS_Settings::get_int( 'delivery_max_options', 1, 60 ),
 			),
 			'production'     => array(
 				'enabled'  => IO_POS_Settings::is_enabled( 'production_enabled' ),

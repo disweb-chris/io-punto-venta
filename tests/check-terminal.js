@@ -113,6 +113,32 @@ assert(
 	apiUrl( 'products?page=1&search=tarjetas' )
 );
 
+console.log( '\nDías hábiles (misma cuenta que el servidor)' );
+
+const businessCfg = {
+	delivery: {
+		workdays: [ 1, 2, 3, 4, 5 ],
+		holidays: [ '2026-09-21' ],
+		defaultDays: 2
+	}
+};
+
+const businessDays = new Function(
+	'deliveryConfig',
+	`${ extract( 'parseISO' ) }
+	${ extract( 'toISO' ) }
+	${ extract( 'shiftISO' ) }
+	${ extract( 'isWorkingDay' ) }
+	${ extract( 'addBusinessDays' ) }
+	return addBusinessDays;`
+)( businessCfg.delivery );
+
+assert( 'cero días desde un viernes', '2026-09-18', businessDays( '2026-09-18', 0 ) );
+assert( 'cero días desde un sábado', '2026-09-22', businessDays( '2026-09-19', 0 ) );
+assert( 'un día saltea finde y feriado', '2026-09-22', businessDays( '2026-09-18', 1 ) );
+assert( 'dos días', '2026-09-23', businessDays( '2026-09-18', 2 ) );
+assert( 'cinco días', '2026-09-28', businessDays( '2026-09-18', 5 ) );
+
 console.log( '\nFormato de importes' );
 
 const money = new Function(

@@ -310,6 +310,7 @@ class IO_POS_REST_API {
 			'stock_quantity' => $product->get_stock_quantity(),
 			'stock_status'   => $product->get_stock_status(),
 			'is_variable'    => $product->is_type( 'variable' ),
+			'production_days' => IO_POS_Delivery::get_product_days( $product ),
 		);
 	}
 

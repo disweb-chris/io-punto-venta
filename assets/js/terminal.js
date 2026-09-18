@@ -14,6 +14,7 @@
 	}
 
 	var caps = cfg.user.capabilities || {};
+	var deliveryConfig = cfg.delivery || {};
 	var root = document.getElementById( 'io-pos-app' );
 	var receiptNode = document.getElementById( 'io-pos-receipt' );
 
@@ -148,6 +149,141 @@
 			( '0' + ( date.getMonth() + 1 ) ).slice( -2 ),
 			( '0' + date.getDate() ).slice( -2 )
 		].join( '-' );
+	}
+
+	/* --- Fechas de entrega ------------------------------------------------ */
+
+	function parseISO( iso ) {
+		var parts = String( iso ).split( '-' );
+
+		return new Date( parseInt( parts[ 0 ], 10 ), parseInt( parts[ 1 ], 10 ) - 1, parseInt( parts[ 2 ], 10 ) );
+	}
+
+	function toISO( date ) {
+		return [
+			date.getFullYear(),
+			( '0' + ( date.getMonth() + 1 ) ).slice( -2 ),
+			( '0' + date.getDate() ).slice( -2 )
+		].join( '-' );
+	}
+
+	function shiftISO( iso, days ) {
+		var date = parseISO( iso );
+
+		date.setDate( date.getDate() + days );
+
+		return toISO( date );
+	}
+
+	/**
+	 * Si el taller trabaja ese día.
+	 *
+	 * @param {string} iso Fecha en formato aaaa-mm-dd.
+	 * @return {boolean} Si es día laborable.
+	 */
+	function isWorkingDay( iso ) {
+		var workdays = deliveryConfig.workdays || [ 1, 2, 3, 4, 5 ];
+		var holidays = deliveryConfig.holidays || [];
+		var weekday = parseISO( iso ).getDay();
+
+		weekday = 0 === weekday ? 7 : weekday;
+
+		if ( workdays.indexOf( weekday ) < 0 ) {
+			return false;
+		}
+
+		return holidays.indexOf( iso ) < 0;
+	}
+
+	/**
+	 * Suma días hábiles, cayendo siempre en un día laborable.
+	 *
+	 * Hace la misma cuenta que el servidor; el punto de partida ya viene
+	 * corrido por la hora de corte, así que acá no hay que mirar el reloj.
+	 *
+	 * @param {string} startISO Desde cuándo.
+	 * @param {number} days     Días hábiles a sumar.
+	 * @return {string} La fecha resultante.
+	 */
+	function addBusinessDays( startISO, days ) {
+		var iso = startISO;
+		var added = 0;
+		var guard = 0;
+
+		days = Math.max( 0, parseInt( days, 10 ) || 0 );
+
+		while ( added < days && guard < 3650 ) {
+			iso = shiftISO( iso, 1 );
+			guard++;
+
+			if ( isWorkingDay( iso ) ) {
+				added++;
+			}
+		}
+
+		guard = 0;
+
+		while ( ! isWorkingDay( iso ) && guard < 3650 ) {
+			iso = shiftISO( iso, 1 );
+			guard++;
+		}
+
+		return iso;
+	}
+
+	/**
+	 * Días de producción de lo que hay en el carrito: manda el más lento.
+	 *
+	 * @return {number} Días hábiles.
+	 */
+	function cartProductionDays() {
+		var fallback = parseInt( deliveryConfig.defaultDays, 10 ) || 0;
+		var days = null;
+
+		state.cart.forEach( function ( line ) {
+			var lineDays = ( null === line.productionDays || undefined === line.productionDays )
+				? fallback
+				: parseInt( line.productionDays, 10 );
+
+			if ( isNaN( lineDays ) ) {
+				lineDays = fallback;
+			}
+
+			days = null === days ? lineDays : Math.max( days, lineDays );
+		} );
+
+		return null === days ? fallback : days;
+	}
+
+	function suggestedDeliveryDate() {
+		if ( ! deliveryConfig.startDate ) {
+			return addDays( 0 );
+		}
+
+		return addBusinessDays( deliveryConfig.startDate, cartProductionDays() );
+	}
+
+	/**
+	 * Primeras fechas de entrega posibles.
+	 *
+	 * @param {number} count Cuántas.
+	 * @return {string[]} Fechas en formato aaaa-mm-dd.
+	 */
+	function deliveryOptions( count ) {
+		var options = [ suggestedDeliveryDate() ];
+
+		while ( options.length < count ) {
+			options.push( addBusinessDays( options[ options.length - 1 ], 1 ) );
+		}
+
+		return options;
+	}
+
+	function weekdayLabel( iso ) {
+		var names = [ 'Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb' ];
+		var date = parseISO( iso );
+
+		return names[ date.getDay() ] + ' ' + date.getDate() + '/' + ( date.getMonth() + 1 );
 	}
 
 	function formatDate( iso ) {
@@ -289,7 +425,8 @@
 				price: round( product.price ),
 				qty: qty || 1,
 				note: '',
-				image: product.image
+				image: product.image,
+				productionDays: ( undefined === product.production_days ) ? null : product.production_days
 			} );
 		}
 
@@ -695,7 +832,7 @@
 			var value = state.job[ def.key ] || '';
 
 			if ( 'delivery_date' === def.key && ! value ) {
-				value = addDays( cfg.job.defaultDays );
+				value = suggestedDeliveryDate();
 			}
 
 			if ( 'textarea' === def.type ) {
@@ -729,13 +866,23 @@
 			if ( 'delivery_date' === def.key ) {
 				var shortcuts = el( 'div', { class: 'io-pos-shortcuts' } );
 
-				[ [ 'Hoy', 0 ], [ 'Mañana', 1 ], [ '+3', 3 ], [ '+7', 7 ], [ '+15', 15 ] ].forEach( function ( pair ) {
-					shortcuts.appendChild( button( pair[ 0 ], function () {
-						input.value = addDays( pair[ 1 ] );
+				var count = Math.min( 6, parseInt( deliveryConfig.maxOptions, 10 ) || 6 );
+
+				deliveryOptions( count ).forEach( function ( option, index ) {
+					var label = 0 === index
+						? weekdayLabel( option ) + ' · lo antes posible'
+						: weekdayLabel( option );
+
+					shortcuts.appendChild( button( label, function () {
+						input.value = option;
 					}, 'chip' ) );
 				} );
 
 				wrapper.appendChild( shortcuts );
+				wrapper.appendChild( el( 'small', {
+					class: 'io-pos-modal__help',
+					text: 'Calculado con los días de producción de lo que hay en el pedido.'
+				} ) );
 				wrapper.className += ' io-pos-field--wide';
 			}
 

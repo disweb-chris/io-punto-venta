@@ -306,7 +306,14 @@ class IO_POS_Job {
 	 * @return string
 	 */
 	public static function get_delivery_date( $order ) {
-		return io_pos_normalize_date( $order->get_meta( self::META_DELIVERY_DATE ) );
+		$date = io_pos_normalize_date( $order->get_meta( self::META_DELIVERY_DATE ) );
+
+		if ( $date ) {
+			return $date;
+		}
+
+		// Respaldo para los pedidos que cargó el plugin de fechas de YITH.
+		return io_pos_normalize_date( $order->get_meta( 'ywcdd_order_delivery_date' ) );
 	}
 
 	/**

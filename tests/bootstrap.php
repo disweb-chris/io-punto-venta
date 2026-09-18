@@ -187,11 +187,23 @@ function sanitize_user( $username, $strict = false ) {
 	return trim( $username );
 }
 
+$GLOBALS['io_pos_test_post_meta'] = array();
+
 function get_post_meta( $post_id, $key = '', $single = false ) {
-	return $single ? '' : array();
+	$value = $GLOBALS['io_pos_test_post_meta'][ $post_id ][ $key ] ?? '';
+
+	return $single ? $value : ( '' === $value ? array() : array( $value ) );
 }
 
 function update_post_meta( $post_id, $key, $value ) {
+	$GLOBALS['io_pos_test_post_meta'][ $post_id ][ $key ] = $value;
+
+	return true;
+}
+
+function delete_post_meta( $post_id, $key ) {
+	unset( $GLOBALS['io_pos_test_post_meta'][ $post_id ][ $key ] );
+
 	return true;
 }
 
@@ -485,6 +497,30 @@ class WC_Order {
 require_once IO_POS_INCLUDES . 'functions-io-pos.php';
 require_once IO_POS_INCLUDES . 'class-io-pos-settings.php';
 require_once IO_POS_INCLUDES . 'class-io-pos-job.php';
+class WC_Product {
+
+	private $meta;
+	private $parent;
+
+	public function __construct( array $meta = array(), $parent = 0 ) {
+		$this->meta   = $meta;
+		$this->parent = (int) $parent;
+	}
+
+	public function get_meta( $key, $single = true ) {
+		return $this->meta[ $key ] ?? '';
+	}
+
+	public function get_parent_id() {
+		return $this->parent;
+	}
+}
+
+function wc_get_product( $product ) {
+	return $product instanceof WC_Product ? $product : false;
+}
+
+require_once IO_POS_INCLUDES . 'class-io-pos-delivery.php';
 require_once IO_POS_INCLUDES . 'class-io-pos-payments.php';
 require_once IO_POS_INCLUDES . 'class-io-pos-order-builder.php';
 require_once IO_POS_INCLUDES . 'modules/class-io-pos-search.php';

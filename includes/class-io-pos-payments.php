@@ -87,19 +87,33 @@ class IO_POS_Payments {
 	 * @return array[]
 	 */
 	public static function get_history( $order ) {
-		$history = $order->get_meta( self::META_HISTORY );
+		// El metabox «Registro de Pagos» y la API que lee el módulo de finanzas
+		// trabajan con post meta, así que mandan ellos: si agregan un cobro
+		// desde el pedido, lo vemos enseguida.
+		$history = get_post_meta( $order->get_id(), self::META_HISTORY, true );
 
-		// El metabox de pagos guarda con update_post_meta; si el pedido todavía
-		// no tiene el dato en memoria, lo buscamos ahí.
 		if ( ! is_array( $history ) || ! $history ) {
-			$stored = get_post_meta( $order->get_id(), self::META_HISTORY, true );
-
-			if ( is_array( $stored ) ) {
-				$history = $stored;
-			}
+			$history = $order->get_meta( self::META_HISTORY );
 		}
 
 		return is_array( $history ) ? array_values( array_filter( $history, 'is_array' ) ) : array();
+	}
+
+	/**
+	 * Guarda el historial en los dos lados.
+	 *
+	 * Con las tablas nuevas de pedidos (HPOS) el meta del pedido y el post meta
+	 * son sitios distintos. El metabox de pagos y la API de finanzas leen el
+	 * post meta; si el mostrador escribiera solo en el del pedido, esos cobros
+	 * serían invisibles y la app daría la venta por cobrada entera.
+	 *
+	 * @param WC_Order $order   El pedido.
+	 * @param array    $history El historial completo.
+	 */
+	protected static function store_history( $order, array $history ) {
+		$order->update_meta_data( self::META_HISTORY, $history );
+
+		update_post_meta( $order->get_id(), self::META_HISTORY, $history );
 	}
 
 	/**
@@ -250,7 +264,7 @@ class IO_POS_Payments {
 		$history   = self::get_history( $order );
 		$history[] = $entry;
 
-		$order->update_meta_data( self::META_HISTORY, $history );
+		self::store_history( $order, $history );
 
 		self::recalculate( $order, false );
 

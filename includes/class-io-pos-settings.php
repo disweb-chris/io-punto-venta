@@ -53,6 +53,16 @@ class IO_POS_Settings {
 			'job_show_on_customer_emails'     => 'yes',
 			'job_custom_fields'               => "material|Material|text|||\nmedidas|Medidas|text|||ticket\nterminacion|Terminación|select|Sin terminación,Laminado mate,Laminado brillante,Troquelado,Ojalillos||\narchivo=_io_drive_link|Archivo / enlace|text|||",
 
+			// Fecha de entrega.
+			'delivery_enabled'                => 'yes',
+			'delivery_default_days'           => 2,
+			'delivery_workdays'               => '1,2,3,4,5',
+			'delivery_holidays'               => '',
+			'delivery_cutoff'                 => '14:00',
+			'delivery_max_options'            => 10,
+			'delivery_checkout_enabled'       => 'yes',
+			'delivery_checkout_required'      => 'yes',
+
 			// Producción.
 			'production_enabled'              => 'yes',
 			'production_statuses'             => "diseno|Diseño\nproduccion|Producción\nterminacion|Terminación\ntaller|Taller\nentregado|Entregado",
@@ -215,6 +225,7 @@ class IO_POS_Settings {
 			'job_custom_fields',
 			'production_statuses',
 			'payment_methods',
+			'delivery_holidays',
 			'receipt_store_details',
 			'receipt_footer',
 		);
@@ -225,6 +236,8 @@ class IO_POS_Settings {
 			'job_default_days'           => array( 0, 365 ),
 			'terminal_page_id'           => array( 0, PHP_INT_MAX ),
 			'terminal_products_per_page' => array( 4, 100 ),
+			'delivery_default_days'      => array( 0, 365 ),
+			'delivery_max_options'       => array( 1, 60 ),
 		);
 
 		foreach ( $defaults as $key => $default ) {

@@ -178,13 +178,6 @@ class IO_POS_Admin_Settings {
 						'type'  => 'checkbox',
 						'label' => __( 'Exigir la fecha de entrega antes de cobrar', 'io-punto-venta' ),
 					),
-					'job_default_days'            => array(
-						'type'  => 'number',
-						'label' => __( 'Días de entrega por defecto', 'io-punto-venta' ),
-						'desc'  => __( 'La fecha que se propone al abrir el panel del trabajo.', 'io-punto-venta' ),
-						'min'   => 0,
-						'max'   => 365,
-					),
 					'job_time_slots'             => array(
 						'type'  => 'textarea',
 						'label' => __( 'Horarios de entrega', 'io-punto-venta' ),
@@ -214,6 +207,55 @@ class IO_POS_Admin_Settings {
 						'type'  => 'checkbox',
 						'label' => __( 'Mostrar los datos del trabajo al cliente', 'io-punto-venta' ),
 						'desc'  => __( 'En los emails de WooCommerce y en el detalle del pedido.', 'io-punto-venta' ),
+					),
+				),
+			),
+			'delivery'   => array(
+				'title'  => __( 'Fecha de entrega', 'io-punto-venta' ),
+				'intro'  => __( 'Reemplaza al plugin de fechas de entrega. Cada producto puede declarar sus días de producción en su ficha (pestaña Inventario); si no lo hace, se usa el valor por defecto. Los días se cuentan hábiles.', 'io-punto-venta' ),
+				'fields' => array(
+					'delivery_enabled'           => array(
+						'type'  => 'checkbox',
+						'label' => __( 'Activar el cálculo de fechas', 'io-punto-venta' ),
+					),
+					'delivery_default_days'      => array(
+						'type'  => 'number',
+						'label' => __( 'Días de producción por defecto', 'io-punto-venta' ),
+						'desc'  => __( 'Para los productos que no declaran los suyos.', 'io-punto-venta' ),
+						'min'   => 0,
+						'max'   => 365,
+					),
+					'delivery_workdays'          => array(
+						'type'  => 'text',
+						'label' => __( 'Días que trabaja el taller', 'io-punto-venta' ),
+						'desc'  => __( 'Separados por coma: 1 es lunes y 7 domingo. Por ejemplo <code>1,2,3,4,5</code> para lunes a viernes.', 'io-punto-venta' ),
+					),
+					'delivery_holidays'          => array(
+						'type'  => 'textarea',
+						'label' => __( 'Feriados', 'io-punto-venta' ),
+						'desc'  => __( 'Una fecha por línea, en formato dd/mm/aaaa. Esos días no se cuentan ni se ofrecen.', 'io-punto-venta' ),
+						'rows'  => 6,
+					),
+					'delivery_cutoff'            => array(
+						'type'  => 'text',
+						'label' => __( 'Hora de corte', 'io-punto-venta' ),
+						'desc'  => __( 'En formato 24 horas, por ejemplo <code>14:00</code>. Después de esa hora el trabajo entra al taller al día siguiente. Dejalo vacío para no usar corte.', 'io-punto-venta' ),
+					),
+					'delivery_max_options'       => array(
+						'type'  => 'number',
+						'label' => __( 'Fechas para elegir', 'io-punto-venta' ),
+						'desc'  => __( 'Cuántas fechas se ofrecen en la web y en el mostrador.', 'io-punto-venta' ),
+						'min'   => 1,
+						'max'   => 60,
+					),
+					'delivery_checkout_enabled'  => array(
+						'type'  => 'checkbox',
+						'label' => __( 'Pedir la fecha al comprar por la web', 'io-punto-venta' ),
+						'desc'  => __( 'Muestra el selector de fechas en el checkout, antes de pagar.', 'io-punto-venta' ),
+					),
+					'delivery_checkout_required' => array(
+						'type'  => 'checkbox',
+						'label' => __( 'La fecha es obligatoria en la web', 'io-punto-venta' ),
 					),
 				),
 			),

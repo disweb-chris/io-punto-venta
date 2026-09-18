@@ -19,6 +19,7 @@ mostrador ni tocar el backend.
 | **Historial** | Ventas del día, propias o con saldo, con reimpresión y cobro del saldo pendiente. |
 | **Cajeros** | Rol propio y permisos por acción: vender, cambiar precios, hacer descuentos, cobrar señas, cobrar saldos. |
 | **Trabajos** | Fecha de entrega, horario, forma de entrega, prioridad y los campos propios que definas. |
+| **Fechas de entrega** | Calcula cuándo puede estar el trabajo según los días de producción de cada producto, contando días hábiles. Reemplaza al plugin de fechas de entrega, y también funciona en la compra por la web. |
 
 No incluye apertura y cierre de caja con arqueo, ni pantalla de producción: la
 producción la maneja el **Panel Taller**, y el mostrador escribe en sus mismas
@@ -36,11 +37,39 @@ El mostrador no crea sistemas paralelos: usa los que ya están andando.
 | Archivo / enlace | `_io_drive_link` | Panel Taller |
 | Cobros | `_io_pagos_historial` | Metabox «Registro de Pagos» y el módulo de finanzas |
 
+Los cobros se guardan **en los dos lados**: en el meta del pedido y en el post
+meta. Con las tablas nuevas de pedidos (HPOS) son sitios distintos, y el metabox
+y la API que lee finanzas usan el post meta. Si el mostrador escribiera solo en
+el del pedido, esos cobros serían invisibles y el módulo de finanzas daría la
+venta por cobrada entera, porque cuando no encuentra historial asume que se
+cobró el total.
+
 Por eso el mostrador **no agrega** columnas de Entrega ni de Producción al
 listado de pedidos: las que ya están muestran lo mismo. Lo único que suma es la
 columna **Cobrado**, con el saldo pendiente.
 
 ---
+
+## Fechas de entrega
+
+Cada producto puede declarar sus **días de producción** en su ficha (pestaña
+*Inventario*). El que no lo declara usa el valor por defecto de los ajustes
+(2 días). Cuando hay varios productos, manda el más lento.
+
+Los días se cuentan **hábiles**: se saltean los días que el taller no trabaja y
+los feriados que cargues. Con la hora de corte configurada, lo que entra después
+de esa hora empieza a contarse al día siguiente.
+
+Eso alimenta tres lugares:
+
+- **El mostrador** propone la fecha ya calculada y ofrece las siguientes fechas
+  posibles como botones.
+- **La compra por la web** muestra las fechas disponibles en el checkout, antes
+  de pagar.
+- **El Panel Taller** las ve, porque se guardan en `_wn_delivery_date`.
+
+Los pedidos que ya tenían fecha del plugin de YITH se siguen leyendo: si
+`_wn_delivery_date` está vacío, se usa `ywcdd_order_delivery_date`.
 
 ## Instalación
 
@@ -246,8 +275,8 @@ Rutas propias bajo `io-pos/v1`, con los permisos de arriba:
 ### Pruebas
 
 ```
-php tests/run-tests.php      # 116 pruebas del lado de WordPress
-node tests/check-terminal.js # 10 pruebas de la pantalla
+php tests/run-tests.php      # 143 pruebas del lado de WordPress
+node tests/check-terminal.js # 15 pruebas de la pantalla
 ```
 
 Del lado de PHP: fechas, validación de ajustes y campos, normalización de los
@@ -256,5 +285,6 @@ del total, carga de las clases y —contra una base SQLite real— las consultas
 del buscador.
 
 Del lado del navegador: el armado de las direcciones de la API (con enlaces
-permanentes bonitos y simples) y el formato de importes, ejecutando el código
-tal como se publica.
+permanentes bonitos y simples), el cálculo de días hábiles —con el mismo caso
+que la prueba de PHP, para que las dos cuentas no se separen— y el formato de
+importes, ejecutando el código tal como se publica.

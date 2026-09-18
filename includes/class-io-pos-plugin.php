@@ -65,6 +65,13 @@ class IO_POS_Plugin {
 				'file'  => 'modules/class-io-pos-order-display.php',
 				'class' => 'IO_POS_Order_Display',
 			),
+			'delivery' => array(
+				'class' => 'IO_POS_Delivery',
+			),
+			'compat'   => array(
+				'file'  => 'modules/class-io-pos-compat.php',
+				'class' => 'IO_POS_Compat',
+			),
 			'emails'   => array(
 				'file'  => 'modules/class-io-pos-emails.php',
 				'class' => 'IO_POS_Emails',

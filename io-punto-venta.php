@@ -3,7 +3,7 @@
  * Plugin Name: IO Punto de Venta para Imprenta
  * Plugin URI:  https://github.com/disweb-chris/io-punto-venta
  * Description: Punto de venta propio para WooCommerce pensado para una imprenta: mostrador táctil, cobro total o con seña, fecha de entrega, datos del trabajo, estados de producción e historial con reimpresión.
- * Version:     2.1.0
+ * Version:     2.2.0
  * Author:      Disweb
  * Text Domain: io-punto-venta
  * Domain Path: /languages
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'IO_POS_VERSION', '2.1.0' );
+define( 'IO_POS_VERSION', '2.2.0' );
 define( 'IO_POS_FILE', __FILE__ );
 define( 'IO_POS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'IO_POS_URL', plugin_dir_url( __FILE__ ) );
@@ -45,6 +45,7 @@ function io_pos_load_files() {
 		'class-io-pos-settings.php',
 		'class-io-pos-install.php',
 		'class-io-pos-job.php',
+		'class-io-pos-delivery.php',
 		'class-io-pos-payments.php',
 		'class-io-pos-order-builder.php',
 		'class-io-pos-terminal.php',

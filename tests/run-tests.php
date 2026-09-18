@@ -354,6 +354,63 @@ IO_POS_Payments::add_payment( $fallback, 'efectivo', 400, array( 'silent' => tru
 io_pos_assert( 'estado inválido cae en procesando', 'processing', IO_POS_Payments::get_target_status( $fallback ) );
 
 /* ---------------------------------------------------------------------- */
+io_pos_section( 'Fechas de entrega' );
+
+update_option(
+	IO_POS_Settings::OPTION,
+	array(
+		'delivery_enabled'      => 'yes',
+		'delivery_default_days' => 2,
+		'delivery_workdays'     => '1,2,3,4,5',
+		// Lunes 21 de septiembre de 2026, feriado.
+		'delivery_holidays'     => "21/09/2026",
+		'delivery_max_options'  => 5,
+	)
+);
+$reset->setValue( null, null );
+
+io_pos_assert( 'días que trabaja el taller', array( 1, 2, 3, 4, 5 ), IO_POS_Delivery::get_workdays() );
+io_pos_assert( 'feriados normalizados', array( '2026-09-21' ), IO_POS_Delivery::get_holidays() );
+
+$zone = new DateTimeZone( 'UTC' );
+
+$viernes = new DateTimeImmutable( '2026-09-18', $zone );
+$sabado  = new DateTimeImmutable( '2026-09-19', $zone );
+
+io_pos_assert( 'un viernes es laborable', true, IO_POS_Delivery::is_working_day( $viernes ) );
+io_pos_assert( 'un sábado no', false, IO_POS_Delivery::is_working_day( $sabado ) );
+io_pos_assert( 'un feriado tampoco', false, IO_POS_Delivery::is_working_day( new DateTimeImmutable( '2026-09-21', $zone ) ) );
+
+io_pos_assert( 'cero días cae en el mismo día si es hábil', '2026-09-18', IO_POS_Delivery::add_business_days( $viernes, 0 )->format( 'Y-m-d' ) );
+io_pos_assert( 'cero días desde un sábado salta al martes', '2026-09-22', IO_POS_Delivery::add_business_days( $sabado, 0 )->format( 'Y-m-d' ) );
+io_pos_assert( 'un día hábil saltea finde y feriado', '2026-09-22', IO_POS_Delivery::add_business_days( $viernes, 1 )->format( 'Y-m-d' ) );
+io_pos_assert( 'dos días hábiles', '2026-09-23', IO_POS_Delivery::add_business_days( $viernes, 2 )->format( 'Y-m-d' ) );
+io_pos_assert( 'una semana hábil', '2026-09-28', IO_POS_Delivery::add_business_days( $viernes, 5 )->format( 'Y-m-d' ) );
+
+$sin_dias  = new WC_Product();
+$dos_dias  = new WC_Product( array( IO_POS_Delivery::PRODUCT_META => 2 ) );
+$diez_dias = new WC_Product( array( IO_POS_Delivery::PRODUCT_META => 10 ) );
+$urgente   = new WC_Product( array( IO_POS_Delivery::PRODUCT_META => 0 ) );
+
+io_pos_assert( 'un producto sin días declarados', null, IO_POS_Delivery::get_product_days( $sin_dias ) );
+io_pos_assert( 'un producto con sus días', 10, IO_POS_Delivery::get_product_days( $diez_dias ) );
+io_pos_assert( 'cero días es un valor válido', 0, IO_POS_Delivery::get_product_days( $urgente ) );
+
+io_pos_assert( 'sin productos usa el valor por defecto', 2, IO_POS_Delivery::get_days_for_products( array() ) );
+io_pos_assert( 'el producto sin días usa el por defecto', 2, IO_POS_Delivery::get_days_for_products( array( $sin_dias ) ) );
+io_pos_assert( 'manda el producto más lento', 10, IO_POS_Delivery::get_days_for_products( array( $dos_dias, $diez_dias, $sin_dias ) ) );
+io_pos_assert( 'un producto inmediato con otro lento', 10, IO_POS_Delivery::get_days_for_products( array( $urgente, $diez_dias ) ) );
+
+io_pos_assert( 'cantidad de fechas ofrecidas', 5, count( IO_POS_Delivery::get_options( 2 ) ) );
+
+$options = IO_POS_Delivery::get_options( 2, 3 );
+
+io_pos_assert( 'las fechas ofrecidas son todas hábiles', true, ! array_filter( $options, function ( $date ) use ( $zone ) {
+	return ! IO_POS_Delivery::is_working_day( new DateTimeImmutable( $date, $zone ) );
+} ) );
+io_pos_assert( 'y no se repiten', 3, count( array_unique( $options ) ) );
+
+/* ---------------------------------------------------------------------- */
 io_pos_section( 'Historial de pagos compartido' );
 
 update_option(
@@ -389,10 +446,36 @@ $history = $full->get_meta( IO_POS_Payments::META_HISTORY );
 
 io_pos_assert( 'cobrar todo de una es un pago', 'pago', $history[0]['tipo'] );
 
-$legacy = new WC_Order( array( '_io_pagos_historial' => array( array( 'tipo' => 'seña', 'metodo' => 'efectivo', 'monto' => 3000 ) ) ), 5000 );
+// Un pedido cargado desde el metabox, que guarda en post meta.
+$legacy = new WC_Order( array(), 5000 );
+update_post_meta(
+	$legacy->get_id(),
+	IO_POS_Payments::META_HISTORY,
+	array( array( 'tipo' => 'seña', 'metodo' => 'efectivo', 'monto' => 3000 ) )
+);
 
-io_pos_assert( 'lee los pagos que ya existían', 3000.0, IO_POS_Payments::get_paid_total( $legacy ) );
+io_pos_assert( 'lee los pagos cargados desde el metabox', 3000.0, IO_POS_Payments::get_paid_total( $legacy ) );
 io_pos_assert( 'calcula el saldo de esos pagos', 2000.0, IO_POS_Payments::get_balance( $legacy ) );
+
+// El cobro del mostrador tiene que quedar visible para el metabox y para la
+// API que lee el módulo de finanzas: si no, la venta se da por cobrada entera.
+$mirror = new WC_Order( array(), 25000 );
+IO_POS_Payments::add_payment( $mirror, 'efectivo', 12500, array( 'silent' => true ) );
+
+$post_meta = get_post_meta( $mirror->get_id(), IO_POS_Payments::META_HISTORY, true );
+
+io_pos_assert( 'el cobro queda también en post meta', true, is_array( $post_meta ) && 1 === count( $post_meta ) );
+io_pos_assert( 'con el importe cobrado, no el total', 12500.0, (float) $post_meta[0]['monto'] );
+io_pos_assert( 'y marcado como seña', 'seña', $post_meta[0]['tipo'] );
+io_pos_assert( 'el saldo pendiente es la diferencia', 12500.0, IO_POS_Payments::get_balance( $mirror ) );
+
+// Si el metabox agrega el saldo después, el mostrador lo tiene que ver.
+$from_metabox = get_post_meta( $mirror->get_id(), IO_POS_Payments::META_HISTORY, true );
+$from_metabox[] = array( 'tipo' => 'saldo', 'metodo' => 'transferencia', 'monto' => 12500 );
+update_post_meta( $mirror->get_id(), IO_POS_Payments::META_HISTORY, $from_metabox );
+
+io_pos_assert( 've los cobros agregados desde el pedido', 25000.0, IO_POS_Payments::get_paid_total( $mirror ) );
+io_pos_assert( 'y deja el saldo en cero', 0.0, IO_POS_Payments::get_balance( $mirror ) );
 
 /* ---------------------------------------------------------------------- */
 io_pos_section( 'Nombre de usuario del cliente' );
@@ -486,6 +569,7 @@ $remaining = array(
 	'rest/class-io-pos-rest-api.php'          => 'IO_POS_REST_API',
 	'modules/class-io-pos-order-display.php'  => 'IO_POS_Order_Display',
 	'modules/class-io-pos-emails.php'         => 'IO_POS_Emails',
+	'modules/class-io-pos-compat.php'         => 'IO_POS_Compat',
 	'modules/class-io-pos-yith-bridge.php'    => 'IO_POS_Yith_Bridge',
 	'admin/class-io-pos-admin-orders.php'     => 'IO_POS_Admin_Orders',
 	'admin/class-io-pos-admin-settings.php'   => 'IO_POS_Admin_Settings',
