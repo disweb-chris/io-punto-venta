@@ -434,9 +434,11 @@ class IO_POS_Admin_Settings {
 		$settings = IO_POS_Settings::all();
 
 		echo '<div class="wrap io-pos-settings">';
-		echo '<h1>' . esc_html__( 'Ajustes de la imprenta', 'io-punto-venta' ) . '</h1>';
+		echo '<h1>' . esc_html__( 'Ajustes del mostrador', 'io-punto-venta' ) . '</h1>';
 
 		settings_errors();
+
+		$this->render_status();
 
 		echo '<form method="post" action="options.php">';
 
@@ -461,6 +463,68 @@ class IO_POS_Admin_Settings {
 		submit_button();
 
 		echo '</form></div>';
+	}
+
+	/**
+	 * Panel con el estado real de lo que está guardado.
+	 *
+	 * Sirve para ver de un vistazo qué quedó configurado sin tener que mirar la
+	 * base de datos, sobre todo después de actualizar.
+	 */
+	protected function render_status() {
+		$pending = IO_POS_Install::get_pending_migrations();
+
+		$rows = array(
+			__( 'Versión instalada', 'io-punto-venta' )      => IO_POS_VERSION . ' (' . ( get_option( 'io_pos_version' ) ?: '—' ) . ')',
+			__( 'Imprime al cerrar la venta', 'io-punto-venta' ) => IO_POS_Settings::is_enabled( 'receipt_auto_print' )
+				? __( 'Sí — por eso se abre el diálogo de impresión', 'io-punto-venta' )
+				: __( 'No', 'io-punto-venta' ),
+			__( 'Correos de WooCommerce', 'io-punto-venta' ) => IO_POS_Settings::is_enabled( 'notify_emails' )
+				? __( 'Sí', 'io-punto-venta' )
+				: __( 'No', 'io-punto-venta' ),
+			__( 'Enlace de Drive', 'io-punto-venta' )        => $this->get_drive_field_status(),
+			__( 'Actualizaciones pendientes', 'io-punto-venta' ) => $pending
+				? implode( ', ', $pending )
+				: __( 'Ninguna', 'io-punto-venta' ),
+		);
+
+		echo '<div class="io-pos-status notice notice-info inline"><p><strong>' . esc_html__( 'Estado actual', 'io-punto-venta' ) . '</strong></p><table class="io-pos-status__table"><tbody>';
+
+		foreach ( $rows as $label => $value ) {
+			printf( '<tr><th>%1$s</th><td>%2$s</td></tr>', esc_html( $label ), esc_html( $value ) );
+		}
+
+		echo '</tbody></table>';
+
+		if ( $pending ) {
+			printf(
+				'<p>%s</p>',
+				esc_html__( 'Entrá de nuevo al escritorio para que se apliquen, o guardá estos ajustes.', 'io-punto-venta' )
+			);
+		}
+
+		echo '</div>';
+	}
+
+	/**
+	 * Cómo quedó configurado el campo del enlace de Drive.
+	 *
+	 * @return string
+	 */
+	protected function get_drive_field_status() {
+		foreach ( IO_POS_Job::get_schema() as $field ) {
+			$keys = array_merge( array( $field['meta_key'] ), (array) $field['mirror'] );
+
+			if ( in_array( '_io_drive_link', $keys, true ) ) {
+				return sprintf(
+					/* translators: %s: etiqueta del campo. */
+					__( 'El campo «%s» escribe en _io_drive_link', 'io-punto-venta' ),
+					$field['label']
+				);
+			}
+		}
+
+		return __( 'Ningún campo escribe en _io_drive_link', 'io-punto-venta' );
 	}
 
 	/**

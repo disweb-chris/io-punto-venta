@@ -144,3 +144,23 @@
 .io-pos-add-payment input {
 	margin-bottom: 6px;
 }
+
+.io-pos-status {
+	max-width: 720px;
+}
+
+.io-pos-status__table {
+	border-collapse: collapse;
+	margin-bottom: 8px;
+}
+
+.io-pos-status__table th {
+	padding: 3px 16px 3px 0;
+	text-align: left;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.io-pos-status__table td {
+	padding: 3px 0;
+}

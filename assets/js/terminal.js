@@ -1402,7 +1402,13 @@
 	 * @return {boolean} Si se mandó a imprimir.
 	 */
 	function maybePrintReceipt( order ) {
-		if ( ! cfg.settings.receiptAutoPrint ) {
+		// El pedido trae el ajuste tal como está ahora en el servidor; lo que
+		// venía en la página puede haber quedado viejo si se sirvió cacheada.
+		var auto = ( order && undefined !== order.auto_print )
+			? order.auto_print
+			: cfg.settings.receiptAutoPrint;
+
+		if ( ! auto ) {
 			return false;
 		}
 

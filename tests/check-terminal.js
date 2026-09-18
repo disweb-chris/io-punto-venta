@@ -170,6 +170,25 @@ const apagado = buildMaybePrint( false );
 assert( 'con el ajuste apagado no imprime', false, apagado.fn( { id: 1 } ) );
 assert( 'y no llama al impresor', 0, apagado.impreso.veces );
 
+// Lo que dice el pedido manda sobre lo que traía la página, que puede estar
+// vieja si la sirvió una caché.
+const paginaVieja = buildMaybePrint( true );
+
+assert(
+	'el pedido apaga la impresión aunque la página dijera que sí',
+	false,
+	paginaVieja.fn( { id: 2, auto_print: false } )
+);
+assert( 'y no imprime', 0, paginaVieja.impreso.veces );
+
+const paginaApagada = buildMaybePrint( false );
+
+assert(
+	'y también la enciende si el pedido lo dice',
+	true,
+	paginaApagada.fn( { id: 3, auto_print: true } )
+);
+
 const encendido = buildMaybePrint( true );
 
 assert( 'con el ajuste encendido imprime', true, encendido.fn( { id: 7 } ) );

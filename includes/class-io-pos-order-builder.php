@@ -658,6 +658,11 @@ class IO_POS_Order_Builder {
 			? IO_POS_Job::get_production_status_label( $data['production_status'] )
 			: '';
 
+		// Viaja con cada pedido a propósito: el ajuste que el mostrador recibió
+		// al abrirse puede haber quedado viejo si la página se sirvió cacheada,
+		// y acá se responde con el valor de este momento.
+		$data['auto_print'] = IO_POS_Settings::is_enabled( 'receipt_auto_print' );
+
 		if ( ! $full ) {
 			return $data;
 		}

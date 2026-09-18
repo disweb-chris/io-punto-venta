@@ -298,6 +298,13 @@ Rutas propias bajo `io-pos/v1`, con los permisos de arriba:
   controles. Si necesitás mantener alguno, está el filtro
   `io_pos_terminal_keep_styles`.
 
+### Estado actual
+
+La pantalla de ajustes abre con un panel que muestra lo que está realmente
+guardado: versión, si el comprobante se imprime solo, si salen los correos de
+WooCommerce, qué campo escribe en `_io_drive_link` y si quedó alguna
+actualización sin aplicar. Sirve para no tener que mirar la base de datos.
+
 ### Actualizaciones
 
 Los cambios que tocan ajustes ya guardados se aplican como migraciones con
@@ -310,7 +317,7 @@ instalación nueva las da por hechas, porque arranca con los valores por defecto
 
 ```
 php tests/run-tests.php      # 169 pruebas del lado de WordPress
-node tests/check-terminal.js # 22 pruebas de la pantalla
+node tests/check-terminal.js # 25 pruebas de la pantalla
 ```
 
 Del lado de PHP: fechas, validación de ajustes y campos, normalización de los

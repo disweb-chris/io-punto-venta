@@ -286,7 +286,10 @@ class IO_POS_Admin_Orders {
 	 * @param string $hook La pantalla actual.
 	 */
 	public function enqueue_assets( $hook ) {
-		if ( ! self::is_orders_screen() ) {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		$is_settings = $screen && false !== strpos( (string) $screen->id, 'io-pos-settings' );
+
+		if ( ! self::is_orders_screen() && ! $is_settings ) {
 			return;
 		}
 
