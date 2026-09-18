@@ -139,6 +139,56 @@ assert( 'un día saltea finde y feriado', '2026-09-22', businessDays( '2026-09-1
 assert( 'dos días', '2026-09-23', businessDays( '2026-09-18', 2 ) );
 assert( 'cinco días', '2026-09-28', businessDays( '2026-09-18', 5 ) );
 
+console.log( '\nImpresión del comprobante' );
+
+/**
+ * Arma maybePrintReceipt con un ajuste dado y un impresor de mentira.
+ *
+ * @param {boolean} autoPrint Si el ajuste está activado.
+ * @return {Object} La función y lo que se mandó a imprimir.
+ */
+function buildMaybePrint( autoPrint ) {
+	const impreso = { order: null, veces: 0 };
+
+	const fn = new Function(
+		'cfg',
+		'printReceipt',
+		`${ extract( 'maybePrintReceipt' ) }; return maybePrintReceipt;`
+	)(
+		{ settings: { receiptAutoPrint: autoPrint } },
+		function ( order ) {
+			impreso.order = order;
+			impreso.veces++;
+		}
+	);
+
+	return { fn, impreso };
+}
+
+const apagado = buildMaybePrint( false );
+
+assert( 'con el ajuste apagado no imprime', false, apagado.fn( { id: 1 } ) );
+assert( 'y no llama al impresor', 0, apagado.impreso.veces );
+
+const encendido = buildMaybePrint( true );
+
+assert( 'con el ajuste encendido imprime', true, encendido.fn( { id: 7 } ) );
+assert( 'una sola vez', 1, encendido.impreso.veces );
+assert( 'y con el pedido que le pasaron', 7, encendido.impreso.order.id );
+
+// Las dos impresiones automáticas —cerrar una venta y cobrar un saldo— tienen
+// que pasar por el ajuste. Los botones de imprimir sí llaman directo.
+assert(
+	'cerrar la venta respeta el ajuste',
+	true,
+	source.includes( 'maybePrintReceipt( body.order )' )
+);
+assert(
+	'cobrar un saldo también',
+	true,
+	source.includes( 'maybePrintReceipt( data.order )' )
+);
+
 console.log( '\nFormato de importes' );
 
 const money = new Function(

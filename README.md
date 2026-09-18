@@ -290,9 +290,9 @@ Rutas propias bajo `io-pos/v1`, con los permisos de arriba:
 - La búsqueda del historial por nombre de cliente usa la búsqueda nativa de
   WooCommerce cuando está activado HPOS; con el guardado clásico busca sobre los
   datos de facturación. Por número de pedido funciona igual en los dos casos.
-- El comprobante **no** se imprime solo al cerrar la venta: se imprime con el
-  botón. Abrir el diálogo de impresión demoraba el cierre. Se vuelve a activar
-  desde Ajustes → Comprobante.
+- El comprobante **no** se imprime solo al cerrar la venta ni al cobrar un
+  saldo: se imprime con el botón. Abrir el diálogo de impresión demoraba el
+  cierre. Se vuelve a activar desde Ajustes → Comprobante.
 - No hay apertura ni cierre de caja con arqueo.
 - En el mostrador se descargan los estilos del tema, porque le rompían los
   controles. Si necesitás mantener alguno, está el filtro
@@ -310,7 +310,7 @@ instalación nueva las da por hechas, porque arranca con los valores por defecto
 
 ```
 php tests/run-tests.php      # 169 pruebas del lado de WordPress
-node tests/check-terminal.js # 15 pruebas de la pantalla
+node tests/check-terminal.js # 22 pruebas de la pantalla
 ```
 
 Del lado de PHP: fechas, validación de ajustes y campos, normalización de los

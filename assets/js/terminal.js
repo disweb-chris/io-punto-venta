@@ -1269,9 +1269,7 @@
 			closeModal();
 			render();
 
-			if ( cfg.settings.receiptAutoPrint ) {
-				printReceipt( body.order );
-			}
+			maybePrintReceipt( body.order );
 		} ).catch( function ( err ) {
 			state.busy = false;
 			error.textContent = err.message;
@@ -1393,6 +1391,26 @@
 		return node;
 	}
 
+	/**
+	 * Imprime solo si el ajuste lo pide.
+	 *
+	 * La usan los cierres automáticos (cobrar una venta, cobrar un saldo). Los
+	 * botones de imprimir llaman a printReceipt directo, porque ahí la persona
+	 * lo está pidiendo.
+	 *
+	 * @param {Object} order El pedido.
+	 * @return {boolean} Si se mandó a imprimir.
+	 */
+	function maybePrintReceipt( order ) {
+		if ( ! cfg.settings.receiptAutoPrint ) {
+			return false;
+		}
+
+		printReceipt( order );
+
+		return true;
+	}
+
 	function printReceipt( order ) {
 		clear( receiptNode ).appendChild( buildReceipt( order ) );
 
@@ -1495,7 +1513,7 @@
 				} ).then( function ( data ) {
 					closeModal();
 					notify( 'Cobro registrado.', 'success' );
-					printReceipt( data.order );
+					maybePrintReceipt( data.order );
 					loadHistory();
 				} ).catch( function ( err ) {
 					error.textContent = err.message;
