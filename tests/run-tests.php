@@ -610,6 +610,86 @@ io_pos_assert( 'se guarda lo que sí vino', 'Caja 1', $saved['terminal_title'] )
 io_pos_assert( 'los textos largos ausentes se conservan', IO_POS_Settings::get( 'payment_methods' ), $saved['payment_methods'] );
 
 /* ---------------------------------------------------------------------- */
+io_pos_section( 'Enlace de Drive' );
+
+require_once IO_POS_INCLUDES . 'class-io-pos-install.php';
+require_once IO_POS_INCLUDES . 'modules/class-io-pos-compat.php';
+
+// Los ajustes guardados antes de la 2.1.0 apuntaban a la clave vieja.
+update_option(
+	IO_POS_Settings::OPTION,
+	array(
+		'job_custom_fields'    => "material|Material|text|||\narchivo|Archivo / enlace|text|||",
+		'job_drive_mark_files' => 'yes',
+	)
+);
+$reset->setValue( null, null );
+$fields_reset->setValue( null, null );
+
+IO_POS_Install::migrate( '2.0.0' );
+$reset->setValue( null, null );
+$fields_reset->setValue( null, null );
+
+io_pos_assert(
+	'la actualización reapunta el campo del archivo',
+	"material|Material|text|||\narchivo=_io_drive_link|Archivo / enlace|text|||",
+	IO_POS_Settings::get( 'job_custom_fields' )
+);
+
+$schema = IO_POS_Job::get_schema();
+io_pos_assert( 'y el campo queda escribiendo en la clave de Drive', '_io_drive_link', $schema['archivo']['meta_key'] );
+
+// Si ya estaba bien, no se toca.
+update_option( IO_POS_Settings::OPTION, array( 'job_custom_fields' => "archivo=_io_drive_link,_otra|Archivo|text|||" ) );
+$reset->setValue( null, null );
+
+IO_POS_Install::migrate( '2.0.0' );
+$reset->setValue( null, null );
+
+io_pos_assert(
+	'no pisa un mapeo que ya estaba puesto',
+	"archivo=_io_drive_link,_otra|Archivo|text|||",
+	IO_POS_Settings::get( 'job_custom_fields' )
+);
+
+io_pos_assert( 'una instalación nueva no migra nada', null, IO_POS_Install::migrate( '' ) );
+
+$compat = new IO_POS_Compat();
+
+// Enlace cargado a mano: el pedido pasa a contar como que tiene archivos.
+$manual = new WC_Order( array( '_io_drive_link' => 'https://drive.google.com/drive/folders/abc' ) );
+$compat->sync_drive_files( $manual );
+
+io_pos_assert( 'el pedido deja de figurar sin archivos', 1, (int) $manual->get_meta( '_io_drive_file_count' ) );
+io_pos_assert( 'y queda marcado como cargado a mano', 1, (int) $manual->get_meta( IO_POS_Compat::META_MANUAL_FILES ) );
+
+// Si después se borra el enlace, se deshace la marca.
+$manual->delete_meta_data( '_io_drive_link' );
+$compat->sync_drive_files( $manual );
+
+io_pos_assert( 'al borrar el enlace vuelve a cero', 0, (int) $manual->get_meta( '_io_drive_file_count' ) );
+io_pos_assert( 'y se saca la marca', '', $manual->get_meta( IO_POS_Compat::META_MANUAL_FILES ) );
+
+// Una carpeta creada por el plugin de subida es territorio suyo.
+$subido = new WC_Order(
+	array(
+		'_io_drive_link'      => 'https://drive.google.com/drive/folders/xyz',
+		'_io_drive_folder_id' => 'xyz',
+	)
+);
+$compat->sync_drive_files( $subido );
+
+io_pos_assert( 'no toca el contador del plugin de subida', '', $subido->get_meta( '_io_drive_file_count' ) );
+
+update_option( IO_POS_Settings::OPTION, array( 'job_drive_mark_files' => 'no' ) );
+$reset->setValue( null, null );
+
+$apagado = new WC_Order( array( '_io_drive_link' => 'https://drive.google.com/x' ) );
+$compat->sync_drive_files( $apagado );
+
+io_pos_assert( 'se puede apagar', '', $apagado->get_meta( '_io_drive_file_count' ) );
+
+/* ---------------------------------------------------------------------- */
 io_pos_section( 'Carga de las clases' );
 
 $remaining = array(

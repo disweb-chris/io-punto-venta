@@ -50,6 +50,7 @@ class IO_POS_Settings {
 			'job_delivery_methods'            => "Retira en el local\nEnvío a domicilio\nEnvío por correo",
 			'job_priorities'                  => "Normal\nUrgente\nExpress (24 h)",
 			'job_customer_note'               => 'yes',
+			'job_drive_mark_files'            => 'yes',
 			'job_show_on_receipt'             => 'yes',
 			'job_show_on_customer_emails'     => 'yes',
 			'job_custom_fields'               => "material|Material|text|||\nmedidas|Medidas|text|||ticket\nterminacion|Terminación|select|Sin terminación,Laminado mate,Laminado brillante,Troquelado,Ojalillos||\narchivo=_io_drive_link|Archivo / enlace|text|||",

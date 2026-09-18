@@ -521,5 +521,12 @@ class IO_POS_Job {
 		if ( $changed ) {
 			$order->save();
 		}
+
+		/**
+		 * Se dispara cuando se guardaron los datos del trabajo de un pedido.
+		 *
+		 * @param WC_Order $order El pedido.
+		 */
+		do_action( 'io_pos_job_saved', $order );
 	}
 }

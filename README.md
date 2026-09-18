@@ -34,7 +34,7 @@ El mostrador no crea sistemas paralelos: usa los que ya están andando.
 | Fecha de entrega | `_wn_delivery_date` | Panel Taller (columna Entrega y su tablero) |
 | Fase de producción | `_wn_fase` | Panel Taller (columna Fase). Si está el snippet de fases, el cambio pasa por `wn_phase_transition()`, así queda registrado |
 | Pedido urgente | `_io_urgente` | Panel Taller |
-| Archivo / enlace | `_io_drive_link` | Panel Taller |
+| Archivo / enlace | `_io_drive_link` | Panel Taller y el plugin de subida de archivos |
 | Cobros | `_io_pagos_historial` | Metabox «Registro de Pagos» y el módulo de finanzas |
 
 Los cobros se guardan **en los dos lados**: en el meta del pedido y en el post
@@ -49,6 +49,21 @@ listado de pedidos: las que ya están muestran lo mismo. Lo único que suma es l
 columna **Cobrado**, con el saldo pendiente.
 
 ---
+
+### El enlace de Drive
+
+El campo «Archivo / enlace» del trabajo escribe en `_io_drive_link`, que es la
+clave que leen el Panel Taller y la caja **Archivos del cliente (Drive)** del
+plugin de subida de archivos. Cargado desde el mostrador, el enlace aparece en
+los tres lados.
+
+Ese plugin además avisa «sin archivos todavía — este pedido no debe pasar a
+producción» mientras `_io_drive_file_count` esté en cero, y ese contador solo lo
+mueve el cliente al subir algo. Si el enlace lo cargás vos, los archivos
+llegaron por otro camino, así que el pedido se marca como que ya los tiene y el
+aviso deja de salir. Solo pasa con los pedidos cuya carpeta **no** creó el
+plugin de subida: si la carpeta es suya, el contador es suyo. Se desactiva
+desde Ajustes → Datos del trabajo.
 
 ## Fechas de entrega
 
@@ -286,7 +301,7 @@ Rutas propias bajo `io-pos/v1`, con los permisos de arriba:
 ### Pruebas
 
 ```
-php tests/run-tests.php      # 153 pruebas del lado de WordPress
+php tests/run-tests.php      # 163 pruebas del lado de WordPress
 node tests/check-terminal.js # 15 pruebas de la pantalla
 ```
 

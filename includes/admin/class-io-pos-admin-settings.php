@@ -204,6 +204,11 @@ class IO_POS_Admin_Settings {
 						'label' => __( 'Pedir observaciones del cliente', 'io-punto-venta' ),
 						'desc'  => __( 'Se guardan como nota del cliente en el pedido, igual que cuando compran por la web.', 'io-punto-venta' ),
 					),
+					'job_drive_mark_files'        => array(
+						'type'  => 'checkbox',
+						'label' => __( 'Dar los archivos por recibidos al cargar el enlace', 'io-punto-venta' ),
+						'desc'  => __( 'Cuando el enlace de Drive se carga a mano, marca el pedido como que ya tiene archivos, para que el aviso de «sin archivos, no pasar a producción» deje de salir. No toca los pedidos cuya carpeta creó el plugin de subida.', 'io-punto-venta' ),
+					),
 					'job_show_on_receipt'         => array(
 						'type'  => 'checkbox',
 						'label' => __( 'Imprimir los datos del trabajo en el ticket', 'io-punto-venta' ),

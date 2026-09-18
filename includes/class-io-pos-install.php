@@ -161,6 +161,19 @@ class IO_POS_Install {
 			return;
 		}
 
+		// 2.4.0: el campo del archivo pasó a guardarse en la clave que leen el
+		// plugin de subida de archivos y el Panel Taller. Los ajustes que ya
+		// estaban guardados seguían con la clave vieja, así que el enlace no se
+		// veía en ningún lado más que en la caja del pedido.
+		if ( version_compare( $installed, '2.4.0', '<' ) ) {
+			$fields  = (string) IO_POS_Settings::get( 'job_custom_fields' );
+			$updated = preg_replace( '/^archivo\|/m', 'archivo=_io_drive_link|', $fields );
+
+			if ( $updated && $updated !== $fields ) {
+				IO_POS_Settings::update( array( 'job_custom_fields' => $updated ) );
+			}
+		}
+
 		// 2.3.0: cerrar la venta sin abrir la impresión, y dejar que
 		// WooCommerce mande sus correos como en una compra por la web.
 		if ( version_compare( $installed, '2.3.0', '<' ) ) {
