@@ -1,0 +1,235 @@
+/**
+ * Estilos del panel de trabajo dentro del punto de venta.
+ */
+
+.io-pos-chip {
+	position: fixed;
+	bottom: 16px;
+	left: 16px;
+	z-index: 9998;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	max-width: calc(100vw - 32px);
+	padding: 10px 18px;
+	border: 0;
+	border-radius: 999px;
+	background: #2d3748;
+	box-shadow: 0 6px 18px rgba(0, 0, 0, .25);
+	color: #fff;
+	font-family: inherit;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.2;
+	cursor: pointer;
+	transition: transform .15s ease;
+}
+
+.io-pos-chip:hover,
+.io-pos-chip:focus {
+	transform: translateY(-1px);
+}
+
+.io-pos-chip::before {
+	content: "";
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: currentColor;
+	flex: 0 0 auto;
+	opacity: .9;
+}
+
+.io-pos-chip--empty {
+	background: #6b7280;
+}
+
+.io-pos-chip--overdue {
+	background: #c0392b;
+}
+
+.io-pos-chip--today {
+	background: #d97706;
+}
+
+.io-pos-chip--soon {
+	background: #0f766e;
+}
+
+.io-pos-chip--scheduled {
+	background: #2d3748;
+}
+
+.io-pos-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 9999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 16px;
+}
+
+.io-pos-modal__overlay {
+	position: absolute;
+	inset: 0;
+	background: rgba(17, 24, 39, .6);
+}
+
+.io-pos-modal__content {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	max-width: 620px;
+	max-height: calc(100vh - 32px);
+	padding: 24px;
+	border-radius: 10px;
+	background: #fff;
+	box-shadow: 0 20px 50px rgba(0, 0, 0, .35);
+	font-family: inherit;
+	color: #1f2937;
+}
+
+.io-pos-modal__title {
+	margin: 0 0 16px;
+	font-size: 22px;
+	font-weight: 700;
+}
+
+.io-pos-modal__body {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+	overflow-y: auto;
+	padding-right: 4px;
+}
+
+.io-pos-modal__field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+
+.io-pos-modal__field--textarea,
+.io-pos-modal__field--deposit,
+.io-pos-modal__error {
+	grid-column: 1 / -1;
+}
+
+.io-pos-modal__label {
+	font-size: 13px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: #4b5563;
+}
+
+.io-pos-modal__input {
+	width: 100%;
+	padding: 10px 12px;
+	border: 1px solid #d1d5db;
+	border-radius: 6px;
+	background: #fff;
+	font-family: inherit;
+	font-size: 16px;
+	color: inherit;
+	box-sizing: border-box;
+}
+
+.io-pos-modal__input:focus {
+	outline: none;
+	border-color: #0f766e;
+	box-shadow: 0 0 0 2px rgba(15, 118, 110, .2);
+}
+
+.io-pos-modal__input--error {
+	border-color: #c0392b;
+	box-shadow: 0 0 0 2px rgba(192, 57, 43, .18);
+}
+
+.io-pos-modal__help {
+	font-size: 12px;
+	color: #6b7280;
+}
+
+.io-pos-modal__shortcuts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.io-pos-modal__shortcut {
+	padding: 6px 12px;
+	border: 1px solid #d1d5db;
+	border-radius: 999px;
+	background: #f9fafb;
+	font-family: inherit;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.io-pos-modal__shortcut:hover {
+	background: #e5e7eb;
+}
+
+.io-pos-modal__error {
+	min-height: 18px;
+	color: #c0392b;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.io-pos-modal__footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	margin-top: 20px;
+}
+
+.io-pos-modal__button {
+	padding: 12px 22px;
+	border: 1px solid #d1d5db;
+	border-radius: 6px;
+	background: #fff;
+	font-family: inherit;
+	font-size: 15px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.io-pos-modal__button--primary {
+	border-color: #0f766e;
+	background: #0f766e;
+	color: #fff;
+}
+
+.io-pos-modal__button--link {
+	margin-right: auto;
+	border-color: transparent;
+	background: transparent;
+	color: #6b7280;
+	font-weight: 500;
+}
+
+@media (max-width: 782px) {
+	.io-pos-modal__body {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.io-pos-chip {
+		font-size: 14px;
+		padding: 8px 14px;
+	}
+}
+
+/* Resultados del buscador: que se note cuál está sin stock, pero que se pueda elegir. */
+.search-result.outofstock {
+	opacity: 1;
+	cursor: pointer;
+}
+
+.search-result.outofstock .product-title::after {
+	content: "";
+}

@@ -1,0 +1,109 @@
+/**
+ * Estilos de las pantallas de administración.
+ */
+
+.io-pos-badge {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: #e5e7eb;
+	color: #374151;
+	font-size: 12px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.io-pos-badge--overdue {
+	background: #fee2e2;
+	color: #991b1b;
+}
+
+.io-pos-badge--today {
+	background: #fef3c7;
+	color: #92400e;
+}
+
+.io-pos-badge--soon {
+	background: #ccfbf1;
+	color: #115e59;
+}
+
+.io-pos-badge--scheduled {
+	background: #e0e7ff;
+	color: #3730a3;
+}
+
+.io-pos-badge--done {
+	background: #dcfce7;
+	color: #166534;
+}
+
+.io-pos-badge--none {
+	background: transparent;
+	color: #9ca3af;
+}
+
+.io-pos-hint {
+	color: #6b7280;
+}
+
+.io-pos-hint--overdue {
+	color: #991b1b;
+	font-weight: 600;
+}
+
+.io-pos-hint--today {
+	color: #92400e;
+	font-weight: 600;
+}
+
+.io-pos-status-select {
+	max-width: 100%;
+}
+
+.io-pos-status-select.is-saving {
+	opacity: .5;
+}
+
+.io-pos-status-select.is-error {
+	border-color: #c0392b;
+}
+
+.io-pos-metabox .form-field {
+	margin: 0 0 12px;
+}
+
+.io-pos-metabox label {
+	display: block;
+	margin-bottom: 4px;
+}
+
+.io-pos-metabox .io-pos-balance {
+	padding: 10px;
+	border-left: 4px solid #d97706;
+	background: #fffbeb;
+}
+
+.io-pos-board__filters {
+	margin: 12px 0;
+}
+
+.io-pos-board__group td {
+	background: #f3f4f6;
+}
+
+.io-pos-board__table .column-delivery,
+.io-pos-board__table .column-production,
+.io-pos-board__table .column-total {
+	width: 14%;
+}
+
+.io-pos-board__table .column-order {
+	width: 10%;
+}
+
+.io-pos-empty {
+	padding: 24px;
+	background: #fff;
+	border: 1px solid #e5e7eb;
+}
