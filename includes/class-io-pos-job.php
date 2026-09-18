@@ -163,7 +163,10 @@ class IO_POS_Job {
 	}
 
 	/**
-	 * Get every meta key handled by the job form.
+	 * Claves meta del formulario del trabajo.
+	 *
+	 * Solo los datos del trabajo: lo cobrado y el saldo son del pedido, no del
+	 * trabajo, y los maneja IO_POS_Payments.
 	 *
 	 * @return string[]
 	 */
@@ -171,9 +174,6 @@ class IO_POS_Job {
 		$keys = wp_list_pluck( self::get_schema(), 'meta_key' );
 
 		$keys[] = self::META_STATUS;
-		$keys[] = self::META_DEPOSIT;
-		$keys[] = self::META_BALANCE;
-		$keys[] = self::META_JOB_TOTAL;
 
 		return array_values( array_unique( $keys ) );
 	}
@@ -382,21 +382,6 @@ class IO_POS_Job {
 				$order->update_meta_data( self::META_STATUS, $new_status );
 			} else {
 				$order->delete_meta_data( self::META_STATUS );
-			}
-		}
-
-		foreach ( array( self::META_DEPOSIT, self::META_BALANCE, self::META_JOB_TOTAL ) as $money_key ) {
-			$raw = $order->get_meta( $money_key );
-
-			if ( '' === (string) $raw ) {
-				continue;
-			}
-
-			$value = wc_format_decimal( $raw, wc_get_price_decimals() );
-
-			if ( (string) $value !== (string) $raw ) {
-				$changed = true;
-				$order->update_meta_data( $money_key, $value );
 			}
 		}
 

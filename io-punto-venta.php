@@ -2,8 +2,8 @@
 /**
  * Plugin Name: IO Punto de Venta para Imprenta
  * Plugin URI:  https://github.com/disweb-chris/io-punto-venta
- * Description: Extiende YITH Point of Sale for WooCommerce y lo adapta al flujo de trabajo de una imprenta: buscador de productos usable, fecha de entrega, datos del trabajo, estados de producción y gestión de señas/saldos.
- * Version:     1.0.0
+ * Description: Punto de venta propio para WooCommerce pensado para una imprenta: mostrador táctil, cobro total o con seña, fecha de entrega, datos del trabajo, estados de producción e historial con reimpresión.
+ * Version:     2.0.0
  * Author:      Disweb
  * Text Domain: io-punto-venta
  * Domain Path: /languages
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'IO_POS_VERSION', '1.0.0' );
+define( 'IO_POS_VERSION', '2.0.0' );
 define( 'IO_POS_FILE', __FILE__ );
 define( 'IO_POS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'IO_POS_URL', plugin_dir_url( __FILE__ ) );
@@ -25,7 +25,7 @@ define( 'IO_POS_INCLUDES', IO_POS_DIR . 'includes/' );
 define( 'IO_POS_ASSETS_URL', IO_POS_URL . 'assets/' );
 
 /**
- * Declare compatibility with WooCommerce features (HPOS, cart/checkout blocks).
+ * Declara compatibilidad con las funciones de WooCommerce (HPOS).
  */
 add_action(
 	'before_woocommerce_init',
@@ -37,9 +37,30 @@ add_action(
 );
 
 /**
- * Show an admin notice when a requirement is missing.
+ * Carga las clases del plugin.
+ */
+function io_pos_load_files() {
+	$files = array(
+		'functions-io-pos.php',
+		'class-io-pos-settings.php',
+		'class-io-pos-install.php',
+		'class-io-pos-job.php',
+		'class-io-pos-payments.php',
+		'class-io-pos-order-builder.php',
+		'class-io-pos-terminal.php',
+		'rest/class-io-pos-rest-api.php',
+		'class-io-pos-plugin.php',
+	);
+
+	foreach ( $files as $file ) {
+		require_once IO_POS_INCLUDES . $file;
+	}
+}
+
+/**
+ * Muestra un aviso cuando falta algo para que el plugin funcione.
  *
- * @param string $message The message to print.
+ * @param string $message El aviso.
  */
 function io_pos_requirement_notice( $message ) {
 	add_action(
@@ -51,7 +72,7 @@ function io_pos_requirement_notice( $message ) {
 }
 
 /**
- * Bootstrap the plugin once all the plugins are loaded.
+ * Arranca el plugin.
  */
 function io_pos_bootstrap() {
 	if ( ! function_exists( 'WC' ) ) {
@@ -60,23 +81,30 @@ function io_pos_bootstrap() {
 		return;
 	}
 
-	if ( ! defined( 'YITH_POS' ) ) {
-		io_pos_requirement_notice( __( '<strong>IO Punto de Venta para Imprenta</strong> necesita el plugin <em>YITH Point of Sale for WooCommerce</em> activo para funcionar.', 'io-punto-venta' ) );
-
-		return;
-	}
-
-	require_once IO_POS_INCLUDES . 'functions-io-pos.php';
-	require_once IO_POS_INCLUDES . 'class-io-pos-settings.php';
-	require_once IO_POS_INCLUDES . 'class-io-pos-job.php';
-	require_once IO_POS_INCLUDES . 'class-io-pos-plugin.php';
-
+	io_pos_load_files();
 	io_pos();
+
+	// En admin_init, no antes: crear la página del mostrador necesita que los
+	// tipos de contenido de WordPress ya estén registrados.
+	add_action( 'admin_init', array( 'IO_POS_Install', 'maybe_upgrade' ) );
 }
 add_action( 'plugins_loaded', 'io_pos_bootstrap', 20 );
 
 /**
- * Load the plugin text domain.
+ * Rutina de activación.
+ */
+function io_pos_activate() {
+	if ( ! function_exists( 'WC' ) ) {
+		return;
+	}
+
+	io_pos_load_files();
+	IO_POS_Install::activate();
+}
+register_activation_hook( __FILE__, 'io_pos_activate' );
+
+/**
+ * Carga las traducciones.
  */
 add_action(
 	'init',

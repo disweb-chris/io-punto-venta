@@ -151,13 +151,14 @@ class IO_POS_Search {
 	 * Search product (and variation) IDs matching every term of the search.
 	 *
 	 * @param string $search The raw search string.
+	 * @param int    $limit  Maximum number of rows; zero uses the setting.
 	 *
 	 * @return int[]
 	 */
-	protected function search_ids( $search ) {
+	public function search_ids( $search, $limit = 0 ) {
 		global $wpdb;
 
-		$limit = $this->get_limit();
+		$limit = $limit > 0 ? (int) $limit : $this->get_limit();
 		$terms = $this->split_terms( $search );
 
 		if ( ! $terms ) {

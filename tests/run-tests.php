@@ -155,7 +155,7 @@ $order = new WC_Order(
 		'_io_pos_field_terminacion'    => 'Laminado mate',
 		'_io_pos_field_cantidad'       => '12,5',
 		IO_POS_Job::META_STATUS        => 'inventado',
-		IO_POS_Job::META_BALANCE       => '1500',
+		'_io_pos_balance_due'          => '1500',
 	)
 );
 
@@ -168,7 +168,7 @@ io_pos_assert( 'texto recortado', 'Cartulina 300g', $meta['_io_pos_field_materia
 io_pos_assert( 'opción válida conservada', 'Laminado mate', $meta['_io_pos_field_terminacion'] );
 io_pos_assert( 'número normalizado', '12.5', $meta['_io_pos_field_cantidad'] );
 io_pos_assert( 'estado inválido pasa al inicial', 'pendiente', $meta[ IO_POS_Job::META_STATUS ] );
-io_pos_assert( 'importe con decimales', '1500.00', $meta[ IO_POS_Job::META_BALANCE ] );
+io_pos_assert( 'no toca lo cobrado, que es del pedido', '1500', $meta['_io_pos_balance_due'] );
 
 $empty = new WC_Order();
 IO_POS_Job::sanitize_order_meta( $empty );
@@ -283,6 +283,174 @@ io_pos_assert( 'conserva el resto de los filtros', '_stock_status', $list_args['
 
 $other_args = $search->filter_product_query( array( 's' => 'tarjetas' ), new WP_REST_Request( array() ) );
 io_pos_assert( 'no toca las consultas ajenas al POS', 'tarjetas', $other_args['s'] ?? '' );
+
+/* ---------------------------------------------------------------------- */
+io_pos_section( 'Cobros' );
+
+update_option(
+	IO_POS_Settings::OPTION,
+	array(
+		'payment_methods'         => "efectivo|Efectivo\ntransferencia|Transferencia",
+		'payment_cash_method'     => 'efectivo',
+		'payment_allow_partial'   => 'yes',
+		'payment_status_paid'     => 'completed',
+		'payment_status_partial'  => 'processing',
+		'payment_status_unpaid'   => 'pending',
+		'production_enabled'      => 'yes',
+		'production_order_status' => 'processing',
+	)
+);
+$reset->setValue( null, null );
+
+$GLOBALS['io_pos_test_caps'] = array( 'io_pos_partial_payment' => true );
+
+$sale = new WC_Order( array( IO_POS_Job::META_DELIVERY_DATE => '2026-10-15' ), 10000 );
+
+io_pos_assert( 'sin cobros, saldo completo', 10000.0, IO_POS_Payments::get_balance( $sale ) );
+io_pos_assert( 'sin cobros, nada cobrado', 0.0, IO_POS_Payments::get_paid_total( $sale ) );
+io_pos_assert( 'estado sin cobrar', 'pending', IO_POS_Payments::get_target_status( $sale ) );
+
+IO_POS_Payments::add_payment( $sale, 'efectivo', 3000 );
+
+io_pos_assert( 'seña registrada', 3000.0, IO_POS_Payments::get_paid_total( $sale ) );
+io_pos_assert( 'saldo tras la seña', 7000.0, IO_POS_Payments::get_balance( $sale ) );
+io_pos_assert( 'estado con saldo', 'processing', IO_POS_Payments::get_target_status( $sale ) );
+io_pos_assert( 'se anota el cobro', 1, count( $sale->get_notes() ) );
+io_pos_assert( 'meta de lo cobrado', '3000.00', $sale->get_meta( IO_POS_Payments::META_PAID ) );
+io_pos_assert( 'meta del saldo', '7000.00', $sale->get_meta( IO_POS_Payments::META_BALANCE ) );
+io_pos_assert( 'sin fecha de pago mientras haya saldo', null, $sale->get_date_paid() );
+
+IO_POS_Payments::add_payment( $sale, 'transferencia', 7000 );
+
+io_pos_assert( 'saldo saldado', 0.0, IO_POS_Payments::get_balance( $sale ) );
+io_pos_assert( 'estado con trabajo y todo cobrado', 'processing', IO_POS_Payments::get_target_status( $sale ) );
+io_pos_assert( 'fecha de pago al saldar', true, null !== $sale->get_date_paid() );
+
+io_pos_assert(
+	'totales por método',
+	array(
+		'efectivo'      => 3000.0,
+		'transferencia' => 7000.0,
+	),
+	IO_POS_Payments::get_totals_by_method( $sale )
+);
+
+$plain = new WC_Order( array(), 500 );
+IO_POS_Payments::add_payment( $plain, 'efectivo', 500 );
+
+io_pos_assert( 'estado sin trabajo y todo cobrado', 'completed', IO_POS_Payments::get_target_status( $plain ) );
+
+$bad_method = IO_POS_Payments::add_payment( new WC_Order( array(), 100 ), 'bitcoin', 50 );
+io_pos_assert( 'método inexistente', 'io_pos_invalid_method', is_wp_error( $bad_method ) ? $bad_method->get_error_code() : '' );
+
+$bad_amount = IO_POS_Payments::add_payment( new WC_Order( array(), 100 ), 'efectivo', 0 );
+io_pos_assert( 'importe cero', 'io_pos_invalid_amount', is_wp_error( $bad_amount ) ? $bad_amount->get_error_code() : '' );
+
+update_option( IO_POS_Settings::OPTION, array( 'payment_status_partial' => 'inventado' ) );
+$reset->setValue( null, null );
+
+$fallback = new WC_Order( array(), 1000 );
+IO_POS_Payments::add_payment( $fallback, 'efectivo', 400, array( 'silent' => true ) );
+
+io_pos_assert( 'estado inválido cae en procesando', 'processing', IO_POS_Payments::get_target_status( $fallback ) );
+
+/* ---------------------------------------------------------------------- */
+io_pos_section( 'Emisión del pedido' );
+
+$check = new ReflectionMethod( 'IO_POS_Order_Builder', 'check_expected_total' );
+$check->setAccessible( true );
+
+$order_total = new WC_Order( array(), 1500 );
+
+io_pos_assert( 'sin total esperado no valida', true, $check->invoke( null, $order_total, array() ) );
+io_pos_assert( 'total coincidente', true, $check->invoke( null, $order_total, array( 'expected_total' => 1500 ) ) );
+io_pos_assert( 'diferencia de redondeo aceptada', true, $check->invoke( null, $order_total, array( 'expected_total' => 1500.004 ) ) );
+
+$mismatch = $check->invoke( null, $order_total, array( 'expected_total' => 1200 ) );
+io_pos_assert( 'total distinto corta la venta', 'io_pos_total_mismatch', is_wp_error( $mismatch ) ? $mismatch->get_error_code() : '' );
+
+update_option(
+	IO_POS_Settings::OPTION,
+	array(
+		'payment_methods'       => "efectivo|Efectivo",
+		'payment_cash_method'   => 'efectivo',
+		'payment_allow_partial' => 'yes',
+	)
+);
+$reset->setValue( null, null );
+
+$add_payments = new ReflectionMethod( 'IO_POS_Order_Builder', 'add_payments' );
+$add_payments->setAccessible( true );
+
+$GLOBALS['io_pos_test_caps'] = array( 'io_pos_partial_payment' => true );
+
+$paid_order = new WC_Order( array(), 2000 );
+$result     = $add_payments->invoke( null, $paid_order, array( 'payments' => array( array( 'method' => 'efectivo', 'amount' => 2000 ) ) ) );
+
+io_pos_assert( 'cobro completo aceptado', true, $result );
+io_pos_assert( 'queda sin saldo', 0.0, IO_POS_Payments::get_balance( $paid_order ) );
+
+$over = $add_payments->invoke( null, new WC_Order( array(), 1000 ), array( 'payments' => array( array( 'method' => 'efectivo', 'amount' => 1500 ) ) ) );
+io_pos_assert( 'no se puede cobrar de más', 'io_pos_overpaid', is_wp_error( $over ) ? $over->get_error_code() : '' );
+
+$partial = $add_payments->invoke( null, new WC_Order( array(), 1000 ), array( 'payments' => array( array( 'method' => 'efectivo', 'amount' => 400 ) ) ) );
+io_pos_assert( 'seña aceptada con permiso', true, $partial );
+
+$GLOBALS['io_pos_test_caps'] = array();
+
+$denied = $add_payments->invoke( null, new WC_Order( array(), 1000 ), array( 'payments' => array( array( 'method' => 'efectivo', 'amount' => 400 ) ) ) );
+io_pos_assert( 'seña sin permiso', 'io_pos_partial_not_allowed', is_wp_error( $denied ) ? $denied->get_error_code() : '' );
+
+$GLOBALS['io_pos_test_caps'] = array( 'io_pos_partial_payment' => true );
+
+update_option( IO_POS_Settings::OPTION, array( 'payment_allow_partial' => 'no' ) );
+$reset->setValue( null, null );
+
+$disabled = $add_payments->invoke( null, new WC_Order( array(), 1000 ), array( 'payments' => array( array( 'method' => 'efectivo', 'amount' => 400 ) ) ) );
+io_pos_assert( 'seña desactivada en ajustes', 'io_pos_partial_disabled', is_wp_error( $disabled ) ? $disabled->get_error_code() : '' );
+
+/* ---------------------------------------------------------------------- */
+io_pos_section( 'Ajustes que no están en el formulario' );
+
+update_option(
+	IO_POS_Settings::OPTION,
+	array(
+		'terminal_page_id' => 42,
+		'terminal_title'   => 'Mostrador',
+	)
+);
+$reset->setValue( null, null );
+
+$saved = IO_POS_Settings::sanitize( array( 'terminal_title' => 'Caja 1' ) );
+
+io_pos_assert( 'no se pierde la página del mostrador', 42, $saved['terminal_page_id'] );
+io_pos_assert( 'se guarda lo que sí vino', 'Caja 1', $saved['terminal_title'] );
+io_pos_assert( 'los textos largos ausentes se conservan', IO_POS_Settings::get( 'payment_methods' ), $saved['payment_methods'] );
+
+/* ---------------------------------------------------------------------- */
+io_pos_section( 'Carga de las clases' );
+
+$remaining = array(
+	'class-io-pos-install.php'                => 'IO_POS_Install',
+	'class-io-pos-terminal.php'               => 'IO_POS_Terminal',
+	'class-io-pos-plugin.php'                 => 'IO_POS_Plugin',
+	'rest/class-io-pos-rest-api.php'          => 'IO_POS_REST_API',
+	'modules/class-io-pos-order-display.php'  => 'IO_POS_Order_Display',
+	'modules/class-io-pos-emails.php'         => 'IO_POS_Emails',
+	'modules/class-io-pos-yith-bridge.php'    => 'IO_POS_Yith_Bridge',
+	'admin/class-io-pos-admin-orders.php'     => 'IO_POS_Admin_Orders',
+	'admin/class-io-pos-admin-board.php'      => 'IO_POS_Admin_Board',
+	'admin/class-io-pos-admin-settings.php'   => 'IO_POS_Admin_Settings',
+);
+
+foreach ( $remaining as $file => $class ) {
+	require_once IO_POS_INCLUDES . $file;
+
+	io_pos_assert( 'se carga ' . $class, true, class_exists( $class ) );
+}
+
+io_pos_assert( 'no hay permisos duplicados', count( IO_POS_Install::get_capabilities() ), count( array_unique( array_keys( IO_POS_Install::get_capabilities() ) ) ) );
+io_pos_assert( 'el cajero solo recibe permisos que existen', array(), array_diff( IO_POS_Install::get_cashier_capabilities(), array_merge( array( 'read' ), array_keys( IO_POS_Install::get_capabilities() ) ) ) );
 
 /* ---------------------------------------------------------------------- */
 echo "\n";

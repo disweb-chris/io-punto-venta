@@ -227,24 +227,120 @@ class IO_POS_Admin_Settings {
 					),
 				),
 			),
-			'deposit'    => array(
-				'title'  => __( 'Seña y saldo', 'io-punto-venta' ),
-				'intro'  => __( 'Permite cobrar una seña en el momento y dejar el resto como saldo pendiente. El saldo se agrega al pedido como una línea negativa, así la caja del día cuadra con lo que realmente entró.', 'io-punto-venta' ),
+			'terminal'   => array(
+				'title'  => __( 'Mostrador', 'io-punto-venta' ),
+				'intro'  => __( 'La pantalla de venta. Se abre en la página que elijas y solo entran los usuarios con el permiso «Usar el mostrador».', 'io-punto-venta' ),
 				'fields' => array(
-					'deposit_enabled'     => array(
+					'terminal_enabled'            => array(
 						'type'  => 'checkbox',
-						'label' => __( 'Activar el cobro de seña', 'io-punto-venta' ),
+						'label' => __( 'Activar el mostrador', 'io-punto-venta' ),
 					),
-					'deposit_label'       => array(
+					'terminal_page_id'            => array(
+						'type'  => 'page',
+						'label' => __( 'Página del mostrador', 'io-punto-venta' ),
+						'desc'  => __( 'La página donde se dibuja la pantalla de venta. Se crea sola al activar el plugin.', 'io-punto-venta' ),
+					),
+					'terminal_title'              => array(
 						'type'  => 'text',
-						'label' => __( 'Texto del saldo en el pedido y en el ticket', 'io-punto-venta' ),
+						'label' => __( 'Nombre que se ve arriba', 'io-punto-venta' ),
 					),
-					'deposit_min_percent' => array(
+					'terminal_products_per_page'  => array(
 						'type'  => 'number',
-						'label' => __( 'Seña mínima (%)', 'io-punto-venta' ),
-						'desc'  => __( 'Cero para no exigir un mínimo.', 'io-punto-venta' ),
-						'min'   => 0,
+						'label' => __( 'Productos por pantalla', 'io-punto-venta' ),
+						'min'   => 4,
 						'max'   => 100,
+					),
+					'terminal_show_images'        => array(
+						'type'  => 'checkbox',
+						'label' => __( 'Mostrar las fotos de los productos', 'io-punto-venta' ),
+					),
+					'terminal_allow_custom_items' => array(
+						'type'  => 'checkbox',
+						'label' => __( 'Permitir trabajos a medida', 'io-punto-venta' ),
+						'desc'  => __( 'Una línea con descripción y precio escritos a mano, sin producto cargado.', 'io-punto-venta' ),
+					),
+					'terminal_customer_label'     => array(
+						'type'  => 'text',
+						'label' => __( 'Texto cuando no hay cliente', 'io-punto-venta' ),
+					),
+				),
+			),
+			'payments'   => array(
+				'title'  => __( 'Cobros', 'io-punto-venta' ),
+				'intro'  => __( 'El pedido se emite siempre por el total del trabajo. Lo que se cobra en el momento se guarda aparte, así se ve lo vendido y lo cobrado por separado.', 'io-punto-venta' ),
+				'fields' => array(
+					'payment_methods'        => array(
+						'type'  => 'textarea',
+						'label' => __( 'Métodos de cobro', 'io-punto-venta' ),
+						'desc'  => __( 'Uno por línea con el formato <code>clave|Etiqueta</code>.', 'io-punto-venta' ),
+						'rows'  => 6,
+					),
+					'payment_cash_method'    => array(
+						'type'  => 'text',
+						'label' => __( 'Clave del método en efectivo', 'io-punto-venta' ),
+						'desc'  => __( 'Es el que viene elegido de entrada y el que calcula el vuelto.', 'io-punto-venta' ),
+					),
+					'payment_allow_partial'  => array(
+						'type'  => 'checkbox',
+						'label' => __( 'Permitir cobrar una seña', 'io-punto-venta' ),
+						'desc'  => __( 'Deja emitir el pedido cobrando menos que el total. El resto queda como saldo pendiente.', 'io-punto-venta' ),
+					),
+					'payment_status_paid'    => array(
+						'type'    => 'select',
+						'label'   => __( 'Estado cuando se cobra todo', 'io-punto-venta' ),
+						'options' => $order_statuses,
+					),
+					'payment_status_partial' => array(
+						'type'    => 'select',
+						'label'   => __( 'Estado cuando queda saldo', 'io-punto-venta' ),
+						'options' => $order_statuses,
+					),
+					'payment_status_unpaid'  => array(
+						'type'    => 'select',
+						'label'   => __( 'Estado cuando no se cobra nada', 'io-punto-venta' ),
+						'options' => $order_statuses,
+					),
+					'notify_emails'          => array(
+						'type'  => 'checkbox',
+						'label' => __( 'Enviar los correos de WooCommerce', 'io-punto-venta' ),
+						'desc'  => __( 'Desactivado, las ventas del mostrador no mandan mails ni al cliente ni a la tienda.', 'io-punto-venta' ),
+					),
+				),
+			),
+			'receipt'    => array(
+				'title'  => __( 'Comprobante', 'io-punto-venta' ),
+				'intro'  => __( 'Lo que se imprime al cerrar la venta. Se imprime desde el navegador, así que sirve tanto para una impresora térmica como para una común.', 'io-punto-venta' ),
+				'fields' => array(
+					'receipt_width'         => array(
+						'type'    => 'select',
+						'label'   => __( 'Formato', 'io-punto-venta' ),
+						'options' => array(
+							'58mm' => __( 'Rollo de 58 mm', 'io-punto-venta' ),
+							'80mm' => __( 'Rollo de 80 mm', 'io-punto-venta' ),
+							'a4'   => __( 'Hoja A4', 'io-punto-venta' ),
+						),
+					),
+					'receipt_store_name'    => array(
+						'type'  => 'text',
+						'label' => __( 'Nombre del negocio', 'io-punto-venta' ),
+						'desc'  => __( 'Vacío usa el nombre del sitio.', 'io-punto-venta' ),
+					),
+					'receipt_store_details' => array(
+						'type'  => 'textarea',
+						'label' => __( 'Datos del encabezado', 'io-punto-venta' ),
+						'desc'  => __( 'Dirección, teléfono, CUIT… Se imprime tal cual, respetando los saltos de línea.', 'io-punto-venta' ),
+					),
+					'receipt_footer'        => array(
+						'type'  => 'textarea',
+						'label' => __( 'Pie del comprobante', 'io-punto-venta' ),
+					),
+					'receipt_show_job'      => array(
+						'type'  => 'checkbox',
+						'label' => __( 'Imprimir los datos del trabajo', 'io-punto-venta' ),
+					),
+					'receipt_auto_print'    => array(
+						'type'  => 'checkbox',
+						'label' => __( 'Abrir la impresión al cerrar la venta', 'io-punto-venta' ),
 					),
 				),
 			),
@@ -329,6 +425,27 @@ class IO_POS_Admin_Settings {
 					(int) ( $field['rows'] ?? 4 ),
 					esc_textarea( $value )
 				);
+				break;
+			case 'page':
+				wp_dropdown_pages(
+					array(
+						'name'              => $name,
+						'id'                => $id,
+						'selected'          => absint( $value ),
+						'show_option_none'  => __( '— Sin página —', 'io-punto-venta' ),
+						'option_none_value' => 0,
+					)
+				);
+
+				$page_url = $value ? get_permalink( absint( $value ) ) : '';
+
+				if ( $page_url ) {
+					printf(
+						' <a href="%1$s" target="_blank" rel="noopener">%2$s</a>',
+						esc_url( $page_url ),
+						esc_html__( 'Abrir el mostrador', 'io-punto-venta' )
+					);
+				}
 				break;
 			case 'select':
 				printf( '<select id="%1$s" name="%2$s">', esc_attr( $id ), esc_attr( $name ) );

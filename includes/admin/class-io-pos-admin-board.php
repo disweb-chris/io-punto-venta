@@ -46,6 +46,18 @@ class IO_POS_Admin_Board {
 			'io-pos-board',
 			array( $this, 'render' )
 		);
+
+		$terminal_url = io_pos_get_terminal_url();
+
+		if ( $terminal_url && current_user_can( 'io_pos_use' ) ) {
+			add_submenu_page(
+				'io-pos-board',
+				__( 'Abrir el mostrador', 'io-punto-venta' ),
+				__( 'Abrir el mostrador', 'io-punto-venta' ),
+				'io_pos_use',
+				$terminal_url
+			);
+		}
 	}
 
 	/**

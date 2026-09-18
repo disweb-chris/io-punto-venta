@@ -149,6 +149,75 @@ function yith_pos_get_barcode_meta() {
 	return '_sku';
 }
 
+function current_user_can( $capability ) {
+	$caps = $GLOBALS['io_pos_test_caps'] ?? array();
+
+	return ! empty( $caps[ $capability ] );
+}
+
+function get_current_user_id() {
+	return 1;
+}
+
+function current_time( $type = 'mysql' ) {
+	return 'timestamp' === $type ? time() : gmdate( 'Y-m-d H:i:s' );
+}
+
+function wp_generate_uuid4() {
+	return sprintf( '%04x%04x-%04x', wp_rand(), wp_rand(), wp_rand() );
+}
+
+function wp_rand( $min = 0, $max = 65535 ) {
+	return random_int( $min, $max );
+}
+
+function wc_price( $amount, $args = array() ) {
+	return '$' . number_format( (float) $amount, 2, ',', '.' );
+}
+
+function wc_get_order_statuses() {
+	return array(
+		'wc-pending'    => 'Pendiente de pago',
+		'wc-processing' => 'Procesando',
+		'wc-on-hold'    => 'En espera',
+		'wc-completed'  => 'Completado',
+		'wc-cancelled'  => 'Cancelado',
+	);
+}
+
+function io_pos_format_price( $amount, $currency = '' ) {
+	return wc_price( $amount );
+}
+
+class WP_Error {
+
+	private $code;
+	private $message;
+	private $data;
+
+	public function __construct( $code = '', $message = '', $data = array() ) {
+		$this->code    = $code;
+		$this->message = $message;
+		$this->data    = $data;
+	}
+
+	public function get_error_code() {
+		return $this->code;
+	}
+
+	public function get_error_message() {
+		return $this->message;
+	}
+
+	public function add_data( $data ) {
+		$this->data = $data;
+	}
+}
+
+function is_wp_error( $thing ) {
+	return $thing instanceof WP_Error;
+}
+
 /* -------------------------------------------------------------------------
  * $wpdb sobre SQLite
  * ---------------------------------------------------------------------- */
@@ -287,11 +356,54 @@ class WP_REST_Request implements ArrayAccess {
 
 class WC_Order {
 
-	private $meta  = array();
-	private $saves = 0;
+	private $meta      = array();
+	private $saves     = 0;
+	private $total     = 0.0;
+	private $status    = 'pending';
+	private $notes     = array();
+	private $date_paid = null;
 
-	public function __construct( array $meta = array() ) {
-		$this->meta = $meta;
+	public function __construct( array $meta = array(), $total = 0.0 ) {
+		$this->meta  = $meta;
+		$this->total = (float) $total;
+	}
+
+	public function get_total() {
+		return $this->total;
+	}
+
+	public function set_total( $total ) {
+		$this->total = (float) $total;
+	}
+
+	public function get_currency() {
+		return 'ARS';
+	}
+
+	public function get_status() {
+		return $this->status;
+	}
+
+	public function set_status( $status ) {
+		$this->status = $status;
+	}
+
+	public function add_order_note( $note ) {
+		$this->notes[] = $note;
+
+		return count( $this->notes );
+	}
+
+	public function get_notes() {
+		return $this->notes;
+	}
+
+	public function get_date_paid( $context = 'view' ) {
+		return $this->date_paid;
+	}
+
+	public function set_date_paid( $date ) {
+		$this->date_paid = $date;
 	}
 
 	public function get_meta( $key, $single = true ) {
@@ -324,4 +436,6 @@ class WC_Order {
 require_once IO_POS_INCLUDES . 'functions-io-pos.php';
 require_once IO_POS_INCLUDES . 'class-io-pos-settings.php';
 require_once IO_POS_INCLUDES . 'class-io-pos-job.php';
+require_once IO_POS_INCLUDES . 'class-io-pos-payments.php';
+require_once IO_POS_INCLUDES . 'class-io-pos-order-builder.php';
 require_once IO_POS_INCLUDES . 'modules/class-io-pos-search.php';

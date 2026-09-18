@@ -107,3 +107,40 @@
 	background: #fff;
 	border: 1px solid #e5e7eb;
 }
+
+.io-pos-metabox--payments {
+	margin-top: 14px;
+	padding-top: 12px;
+	border-top: 1px solid #dcdcde;
+}
+
+.io-pos-metabox--payments h4 {
+	margin: 0 0 8px;
+}
+
+.io-pos-payments {
+	margin: 0 0 10px;
+	padding: 0;
+	list-style: none;
+}
+
+.io-pos-payments li {
+	padding: 6px 0;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.io-pos-payments small {
+	color: #6b7280;
+}
+
+.io-pos-add-payment {
+	margin-top: 10px;
+	padding: 10px;
+	border-radius: 4px;
+	background: #f6f7f7;
+}
+
+.io-pos-add-payment select,
+.io-pos-add-payment input {
+	margin-bottom: 6px;
+}

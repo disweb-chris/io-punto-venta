@@ -1,9 +1,10 @@
 <?php
 /**
- * Point of sale integration.
+ * Puente con YITH Point of Sale.
  *
- * Loads the assets that extend the YITH POS React app and normalizes whatever
- * the register sends when it creates an order.
+ * Solo se carga si YITH POS sigue activo, para acompañar la transición al
+ * mostrador propio: arregla su buscador y le agrega los datos del trabajo.
+ * Se puede borrar el día que YITH se desinstale.
  *
  * @package IO\POS
  */
@@ -11,9 +12,9 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class IO_POS_Register
+ * Class IO_POS_Yith_Bridge
  */
-class IO_POS_Register {
+class IO_POS_Yith_Bridge {
 
 	/**
 	 * Constructor.
@@ -94,14 +95,8 @@ class IO_POS_Register {
 				'default'  => IO_POS_Job::get_default_production_status(),
 				'metaKey'  => IO_POS_Job::META_STATUS,
 			),
-			'deposit'    => array(
-				'enabled'       => IO_POS_Settings::is_enabled( 'deposit_enabled' ),
-				'label'         => IO_POS_Settings::get( 'deposit_label' ),
-				'minPercent'    => IO_POS_Settings::get_int( 'deposit_min_percent', 0, 100 ),
-				'depositMeta'   => IO_POS_Job::META_DEPOSIT,
-				'balanceMeta'   => IO_POS_Job::META_BALANCE,
-				'jobTotalMeta'  => IO_POS_Job::META_JOB_TOTAL,
-			),
+			// El cobro con seña vive en el mostrador propio, no en YITH.
+			'deposit'    => array( 'enabled' => false ),
 			'search'     => array(
 				'enabled'         => IO_POS_Settings::is_enabled( 'search_enabled' ),
 				'minChars'        => IO_POS_Settings::get_int( 'search_min_chars', 1, 10 ),

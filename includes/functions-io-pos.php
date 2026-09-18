@@ -167,6 +167,10 @@ if ( ! function_exists( 'io_pos_is_pos_order' ) ) {
 			return false;
 		}
 
+		if ( absint( $order->get_meta( IO_POS_Order_Builder::META_POS ) ) ) {
+			return true;
+		}
+
 		if ( function_exists( 'yith_pos_is_pos_order' ) ) {
 			return (bool) yith_pos_is_pos_order( $order );
 		}
@@ -192,20 +196,22 @@ if ( ! function_exists( 'io_pos_is_job_order' ) ) {
 
 if ( ! function_exists( 'io_pos_get_balance_due' ) ) {
 	/**
-	 * Pending balance of an order.
+	 * Saldo pendiente de un pedido.
 	 *
-	 * @param mixed $order Order, order ID or post.
+	 * @param mixed $order Pedido, ID o post.
 	 *
 	 * @return float
 	 */
 	function io_pos_get_balance_due( $order ) {
 		$order = io_pos_get_order( $order );
 
-		if ( ! $order ) {
+		// Un pedido que no lleva el control de cobros del mostrador no tiene
+		// saldo pendiente: nadie registró lo que se cobró.
+		if ( ! $order || ! io_pos_tracks_payments( $order ) ) {
 			return 0.0;
 		}
 
-		return (float) wc_format_decimal( $order->get_meta( IO_POS_Job::META_BALANCE ), wc_get_price_decimals() );
+		return IO_POS_Payments::get_balance( $order );
 	}
 }
 
@@ -223,5 +229,101 @@ if ( ! function_exists( 'io_pos_is_pos_search_request' ) ) {
 		}
 
 		return 'search-products' === ( $request['yith_pos_request'] ?? '' );
+	}
+}
+
+if ( ! function_exists( 'io_pos_format_price' ) ) {
+	/**
+	 * Da formato a un importe, en texto plano.
+	 *
+	 * @param float|string $amount   El importe.
+	 * @param string       $currency Moneda; vacío usa la de la tienda.
+	 *
+	 * @return string
+	 */
+	function io_pos_format_price( $amount, $currency = '' ) {
+		$args = $currency ? array( 'currency' => $currency ) : array();
+
+		return html_entity_decode( wp_strip_all_tags( wc_price( (float) $amount, $args ) ), ENT_QUOTES, 'UTF-8' );
+	}
+}
+
+if ( ! function_exists( 'io_pos_search_product_ids' ) ) {
+	/**
+	 * Busca productos con el buscador del plugin.
+	 *
+	 * @param string $search Lo que se escribió.
+	 * @param int    $limit  Cantidad máxima de resultados.
+	 *
+	 * @return int[]
+	 */
+	function io_pos_search_product_ids( $search, $limit = 0 ) {
+		$module = io_pos()->module( 'search' );
+
+		if ( ! $module instanceof IO_POS_Search ) {
+			return array();
+		}
+
+		return $module->search_ids( $search, $limit );
+	}
+}
+
+if ( ! function_exists( 'io_pos_get_user_name' ) ) {
+	/**
+	 * Nombre para mostrar de un usuario.
+	 *
+	 * @param int $user_id El ID.
+	 *
+	 * @return string
+	 */
+	function io_pos_get_user_name( $user_id ) {
+		$user = get_userdata( $user_id );
+
+		if ( ! $user ) {
+			return '';
+		}
+
+		$name = trim( $user->first_name . ' ' . $user->last_name );
+
+		return $name ? $name : $user->display_name;
+	}
+}
+
+if ( ! function_exists( 'io_pos_get_terminal_url' ) ) {
+	/**
+	 * Dirección de la pantalla del mostrador.
+	 *
+	 * @return string
+	 */
+	function io_pos_get_terminal_url() {
+		$page_id = absint( IO_POS_Settings::get( 'terminal_page_id' ) );
+
+		return $page_id ? (string) get_permalink( $page_id ) : '';
+	}
+}
+
+if ( ! function_exists( 'io_pos_tracks_payments' ) ) {
+	/**
+	 * Si el pedido lleva el control de cobros del mostrador.
+	 *
+	 * Los pedidos anteriores al plugin (o los de otro punto de venta) no tienen
+	 * cobros registrados, así que no hay que mostrarles un saldo que no existe.
+	 *
+	 * @param mixed $order Pedido, ID o post.
+	 *
+	 * @return bool
+	 */
+	function io_pos_tracks_payments( $order ) {
+		$order = io_pos_get_order( $order );
+
+		if ( ! $order ) {
+			return false;
+		}
+
+		if ( absint( $order->get_meta( IO_POS_Order_Builder::META_POS ) ) ) {
+			return true;
+		}
+
+		return (bool) IO_POS_Payments::get_payments( $order );
 	}
 }

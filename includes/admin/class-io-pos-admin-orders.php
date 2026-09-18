@@ -101,24 +101,35 @@ class IO_POS_Admin_Orders {
 			$new[ $key ] = $label;
 
 			if ( 'order_status' === $key ) {
-				$new['io_pos_delivery'] = __( 'Entrega', 'io-punto-venta' );
-
-				if ( IO_POS_Settings::is_enabled( 'production_enabled' ) ) {
-					$new['io_pos_production'] = __( 'Producción', 'io-punto-venta' );
-				}
+				$new = array_merge( $new, $this->get_extra_columns() );
 			}
 		}
 
-		// Fall back to appending the columns when the status one is not there.
+		// Si no está la columna de estado, las agregamos al final.
 		if ( ! isset( $new['io_pos_delivery'] ) ) {
-			$new['io_pos_delivery'] = __( 'Entrega', 'io-punto-venta' );
-
-			if ( IO_POS_Settings::is_enabled( 'production_enabled' ) ) {
-				$new['io_pos_production'] = __( 'Producción', 'io-punto-venta' );
-			}
+			$new = array_merge( $new, $this->get_extra_columns() );
 		}
 
 		return $new;
+	}
+
+	/**
+	 * Columnas que agrega el plugin.
+	 *
+	 * @return array<string,string>
+	 */
+	protected function get_extra_columns() {
+		$columns = array(
+			'io_pos_delivery' => __( 'Entrega', 'io-punto-venta' ),
+		);
+
+		if ( IO_POS_Settings::is_enabled( 'production_enabled' ) ) {
+			$columns['io_pos_production'] = __( 'Producción', 'io-punto-venta' );
+		}
+
+		$columns['io_pos_payments'] = __( 'Cobrado', 'io-punto-venta' );
+
+		return $columns;
 	}
 
 	/**
@@ -141,7 +152,7 @@ class IO_POS_Admin_Orders {
 	 * @param int|WC_Order $order  Order ID (legacy) or order object (HPOS).
 	 */
 	public function render_column( $column, $order ) {
-		if ( ! in_array( $column, array( 'io_pos_delivery', 'io_pos_production' ), true ) ) {
+		if ( ! in_array( $column, array( 'io_pos_delivery', 'io_pos_production', 'io_pos_payments' ), true ) ) {
 			return;
 		}
 
@@ -153,6 +164,12 @@ class IO_POS_Admin_Orders {
 
 		if ( 'io_pos_delivery' === $column ) {
 			echo wp_kses_post( self::get_delivery_badge( $order ) );
+
+			return;
+		}
+
+		if ( 'io_pos_payments' === $column ) {
+			echo wp_kses_post( self::get_payments_badge( $order ) );
 
 			return;
 		}
@@ -222,6 +239,37 @@ class IO_POS_Admin_Orders {
 		}
 
 		return $html;
+	}
+
+	/**
+	 * Resumen de lo cobrado de un pedido.
+	 *
+	 * @param WC_Order $order El pedido.
+	 *
+	 * @return string
+	 */
+	public static function get_payments_badge( $order ) {
+		if ( ! io_pos_tracks_payments( $order ) ) {
+			return '<span class="io-pos-badge io-pos-badge--none">&ndash;</span>';
+		}
+
+		$balance  = IO_POS_Payments::get_balance( $order );
+		$paid     = IO_POS_Payments::get_paid_total( $order );
+		$currency = $order->get_currency();
+
+		if ( $balance <= 0 ) {
+			return sprintf(
+				'<span class="io-pos-badge io-pos-badge--done">%s</span>',
+				esc_html( io_pos_format_price( $paid, $currency ) )
+			);
+		}
+
+		return sprintf(
+			'<span class="io-pos-badge io-pos-badge--today">%1$s</span><br><small class="io-pos-hint io-pos-hint--overdue">%2$s %3$s</small>',
+			esc_html( io_pos_format_price( $paid, $currency ) ),
+			esc_html__( 'Saldo:', 'io-punto-venta' ),
+			esc_html( io_pos_format_price( $balance, $currency ) )
+		);
 	}
 
 	/**
@@ -602,15 +650,85 @@ class IO_POS_Admin_Orders {
 			echo '</select></p>';
 		}
 
-		$balance = io_pos_get_balance_due( $order );
+		echo '</div>';
+
+		$this->render_payments_box( $order );
+	}
+
+	/**
+	 * Dibuja el bloque de cobros dentro de la caja del trabajo.
+	 *
+	 * @param WC_Order $order El pedido.
+	 */
+	protected function render_payments_box( $order ) {
+		$payments = IO_POS_Payments::get_payments( $order );
+		$balance  = IO_POS_Payments::get_balance( $order );
+		$paid     = IO_POS_Payments::get_paid_total( $order );
+		$currency = $order->get_currency();
+
+		if ( ! io_pos_tracks_payments( $order ) ) {
+			return;
+		}
+
+		echo '<div class="io-pos-metabox io-pos-metabox--payments">';
+		printf( '<h4>%s</h4>', esc_html__( 'Cobros', 'io-punto-venta' ) );
+
+		if ( $payments ) {
+			echo '<ul class="io-pos-payments">';
+
+			foreach ( $payments as $payment ) {
+				printf(
+					'<li><strong>%1$s</strong> · %2$s<br><small>%3$s</small></li>',
+					esc_html( io_pos_format_price( $payment['amount'], $currency ) ),
+					esc_html( IO_POS_Payments::get_method_label( $payment['method'] ) ),
+					esc_html( mysql2date( get_option( 'date_format' ) . ' H:i', $payment['date'] ?? '' ) )
+				);
+			}
+
+			echo '</ul>';
+		} else {
+			printf( '<p class="io-pos-hint">%s</p>', esc_html__( 'Todavía no se cobró nada.', 'io-punto-venta' ) );
+		}
+
+		printf(
+			'<p><strong>%1$s</strong> %2$s</p>',
+			esc_html__( 'Cobrado:', 'io-punto-venta' ),
+			esc_html( io_pos_format_price( $paid, $currency ) )
+		);
 
 		if ( $balance > 0 ) {
 			printf(
-				'<p class="io-pos-balance"><strong>%1$s</strong><br>%2$s<br><em>%3$s</em></p>',
-				esc_html__( 'Saldo pendiente', 'io-punto-venta' ),
-				wp_kses_post( wc_price( $balance, array( 'currency' => $order->get_currency() ) ) ),
-				esc_html__( 'Usá la acción “Registrar el cobro del saldo pendiente” cuando lo cobres.', 'io-punto-venta' )
+				'<p class="io-pos-balance"><strong>%1$s</strong> %2$s</p>',
+				esc_html__( 'Saldo pendiente:', 'io-punto-venta' ),
+				esc_html( io_pos_format_price( $balance, $currency ) )
 			);
+
+			if ( current_user_can( 'io_pos_collect_balance' ) ) {
+				echo '<div class="io-pos-add-payment">';
+				printf( '<label for="io-pos-payment-amount"><strong>%s</strong></label>', esc_html__( 'Registrar un cobro', 'io-punto-venta' ) );
+
+				echo '<select name="io_pos_new_payment[method]" class="widefat">';
+
+				foreach ( IO_POS_Payments::get_methods() as $key => $label ) {
+					printf(
+						'<option value="%1$s"%2$s>%3$s</option>',
+						esc_attr( $key ),
+						selected( $key, IO_POS_Payments::get_cash_method(), false ),
+						esc_html( $label )
+					);
+				}
+
+				echo '</select>';
+
+				printf(
+					'<input type="number" step="0.01" min="0" max="%1$s" id="io-pos-payment-amount" name="io_pos_new_payment[amount]" class="widefat" placeholder="%2$s" />',
+					esc_attr( (string) $balance ),
+					esc_attr( (string) $balance )
+				);
+
+				printf( '<p class="io-pos-hint">%s</p>', esc_html__( 'Se registra al guardar el pedido.', 'io-punto-venta' ) );
+				echo '</div>';
+			}
 		}
 
 		echo '</div>';
@@ -664,6 +782,50 @@ class IO_POS_Admin_Orders {
 		$order->save();
 
 		IO_POS_Job::sanitize_order_meta( $order );
+
+		$this->maybe_add_payment( $order );
+	}
+
+	/**
+	 * Registra el cobro cargado en la caja del trabajo, si lo hay.
+	 *
+	 * @param WC_Order $order El pedido.
+	 */
+	protected function maybe_add_payment( $order ) {
+		if ( ! isset( $_POST['io_pos_new_payment'] ) || ! current_user_can( 'io_pos_collect_balance' ) ) {
+			return;
+		}
+
+		$raw    = (array) wp_unslash( $_POST['io_pos_new_payment'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$amount = round( (float) str_replace( ',', '.', (string) ( $raw['amount'] ?? 0 ) ), wc_get_price_decimals() );
+
+		if ( $amount <= 0 ) {
+			return;
+		}
+
+		$balance = IO_POS_Payments::get_balance( $order );
+
+		if ( $amount > $balance + 0.01 ) {
+			$amount = $balance;
+		}
+
+		if ( $amount <= 0 ) {
+			return;
+		}
+
+		$payment = IO_POS_Payments::add_payment(
+			$order,
+			sanitize_key( $raw['method'] ?? '' ),
+			$amount,
+			array( 'save' => false )
+		);
+
+		if ( is_wp_error( $payment ) ) {
+			return;
+		}
+
+		$order->set_status( IO_POS_Payments::get_target_status( $order ) );
+		$order->save();
 	}
 
 	/**
